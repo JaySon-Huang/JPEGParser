@@ -11,6 +11,9 @@ public class JPEGInfo{
 
     private String mColors[];
 
+    int JFIF_major_version = 1;
+    int JFIF_minor_version = 1;
+
     public void setColors(String[] colors){
         mColors = colors;
         mLayers = new ArrayList<JPEGLayer>(colors.length);

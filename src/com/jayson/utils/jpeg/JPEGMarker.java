@@ -27,6 +27,7 @@ public class JPEGMarker extends HashMap<Integer, JPEGMarkInfo> {
         mInfos.put(0xffcd, new JPEGMarkInfo("SOF13", "Differential sequential DCT (AC)", JPEGMarkInfo.TYPE_SOF));
         mInfos.put(0xffce, new JPEGMarkInfo("SOF14", "Differential progressive DCT (AC)", JPEGMarkInfo.TYPE_SOF));
         mInfos.put(0xffcf, new JPEGMarkInfo("SOF15", "Differential spatial (AC)", JPEGMarkInfo.TYPE_SOF));
+
         mInfos.put(0xffd0, new JPEGMarkInfo("RST0", "Restart 0", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xffd1, new JPEGMarkInfo("RST1", "Restart 1", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xffd2, new JPEGMarkInfo("RST2", "Restart 2", JPEGMarkInfo.TYPE_UNKNOWN));
@@ -35,7 +36,8 @@ public class JPEGMarker extends HashMap<Integer, JPEGMarkInfo> {
         mInfos.put(0xffd5, new JPEGMarkInfo("RST5", "Restart 5", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xffd6, new JPEGMarkInfo("RST6", "Restart 6", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xffd7, new JPEGMarkInfo("RST7", "Restart 7", JPEGMarkInfo.TYPE_UNKNOWN));
-        mInfos.put(0xffd8, new JPEGMarkInfo("SOI", "Start of image", JPEGMarkInfo.TYPE_UNKNOWN));
+
+        mInfos.put(0xffd8, new JPEGMarkInfo("SOI", "Start of image", JPEGMarkInfo.TYPE_SOI));
         mInfos.put(0xffd9, new JPEGMarkInfo("EOI", "End of image", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xffda, new JPEGMarkInfo("SOS", "Start of scan", JPEGMarkInfo.TYPE_SOS));
         mInfos.put(0xffdb, new JPEGMarkInfo("DQT", "Define quantization table", JPEGMarkInfo.TYPE_DQT));
@@ -43,6 +45,7 @@ public class JPEGMarker extends HashMap<Integer, JPEGMarkInfo> {
         mInfos.put(0xffdd, new JPEGMarkInfo("DRI", "Define restart interval", JPEGMarkInfo.TYPE_SKIP));
         mInfos.put(0xffde, new JPEGMarkInfo("DHP", "Define hierarchical progression", JPEGMarkInfo.TYPE_SOF));
         mInfos.put(0xffdf, new JPEGMarkInfo("EXP", "Expand reference component", JPEGMarkInfo.TYPE_SKIP));
+
         mInfos.put(0xffe0, new JPEGMarkInfo("APP0", "Application segment 0", JPEGMarkInfo.TYPE_APP));
         mInfos.put(0xffe1, new JPEGMarkInfo("APP1", "Application segment 1", JPEGMarkInfo.TYPE_APP));
         mInfos.put(0xffe2, new JPEGMarkInfo("APP2", "Application segment 2", JPEGMarkInfo.TYPE_APP));
@@ -59,6 +62,7 @@ public class JPEGMarker extends HashMap<Integer, JPEGMarkInfo> {
         mInfos.put(0xffed, new JPEGMarkInfo("APP13", "Application segment 13", JPEGMarkInfo.TYPE_APP));
         mInfos.put(0xffee, new JPEGMarkInfo("APP14", "Application segment 14", JPEGMarkInfo.TYPE_APP));
         mInfos.put(0xffef, new JPEGMarkInfo("APP15", "Application segment 15", JPEGMarkInfo.TYPE_APP));
+
         mInfos.put(0xfff0, new JPEGMarkInfo("JPG0", "Extension 0", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xfff1, new JPEGMarkInfo("JPG1", "Extension 1", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xfff2, new JPEGMarkInfo("JPG2", "Extension 2", JPEGMarkInfo.TYPE_UNKNOWN));
@@ -73,6 +77,7 @@ public class JPEGMarker extends HashMap<Integer, JPEGMarkInfo> {
         mInfos.put(0xfffb, new JPEGMarkInfo("JPG11", "Extension 11", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xfffc, new JPEGMarkInfo("JPG12", "Extension 12", JPEGMarkInfo.TYPE_UNKNOWN));
         mInfos.put(0xfffd, new JPEGMarkInfo("JPG13", "Extension 13", JPEGMarkInfo.TYPE_UNKNOWN));
+
         mInfos.put(0xfffe, new JPEGMarkInfo("COM", "Comment", JPEGMarkInfo.TYPE_COMMENT));
     }
 

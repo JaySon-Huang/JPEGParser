@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+
 import static com.jayson.utils.jpeg.b2i.i16;
 
 /**
@@ -21,7 +22,7 @@ public class JPEGParser implements Closeable{
     public static final int SOI = 0xFFD8;
 
     public static final String[] COLORS_GREY = new String[]{"L"};
-    public static final String[] COLORS_YCrCb = new String[]{"Y", "Cr", "Cb"};
+    public static final String[] COLORS_YCrCb = new String[]{" Y", "Cr", "Cb"};
     public static final String[] COLORS_CMYK = new String[]{"C", "M", "Y", "K"};
 
     private FileInputStream mIs;
@@ -298,19 +299,28 @@ public class JPEGParser implements Closeable{
                 BitInputStream bis = new BitInputStream(mIs);
                 int color_num = mInfos.getColors().length;
                 int[] dc_base = new int[color_num];
-
-                // YCbCr 扫描
-                for (int color=1;color<=color_num;++color){
-                    System.out.print(mInfos.getColors()[color-1]+":");
-                    // 更新DC基值
-                    dc_base[color-1] = scanColorUnit(bis, color, dc_base[color-1]);
+                while (true) {
+                    scanColorUnit(bis, color_num, dc_base);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-        private int scanColorUnit(BitInputStream bis, int color_id, int dc_base){
+        private void scanColorUnit(BitInputStream bis, int color_num, int[] dc_base){
+
+            // YCbCr 扫描
+            for (int color = 1; color <= color_num; ++color) {
+                JPEGInfo.JPEGLayer layer = mInfos.getLayer(color);
+                for (int i = 0; i != layer.mHSamp*layer.mVSamp; ++i){
+                    System.out.print(mInfos.getColors()[color - 1] + ":");
+                    // 更新DC基值
+                    dc_base[color - 1] = scanColor(bis, color, dc_base[color - 1]);
+                }
+            }
+        }
+
+        private int scanColor(BitInputStream bis, int color_id, int dc_base){
             try {
                 JPEGInfo.JPEGLayer layer = mInfos.getLayer(color_id);
                 StringBuffer buf = new StringBuffer();
@@ -322,12 +332,12 @@ public class JPEGParser implements Closeable{
                                 .find(buf.toString());
                 }while (weight == null);
                 // DC实际值为diff值(读出)+上一Unit的DC值
-                int dc_val = dc_base + bis.readBits(weight);
+                int dc_val = dc_base + convert(bis.readBitsString(weight));
                 System.out.print(String.format("DC:%3d",dc_val));
                 System.out.print(" AC:");
 
                 // 最多63个交流分量的值
-                for (int i=1;i!=64;++i){
+                for (int i = 1; i < 64; ++i){
                     // 找到一个交流分量对应的值
                     buf = new StringBuffer();
                     do {
@@ -342,9 +352,11 @@ public class JPEGParser implements Closeable{
                     }
                     // 权值高4位表示前置有多少个0
                     int pre_zeros = weight >>> 4;
+                    // 进行累加，i超过
+                    i += pre_zeros;
                     // 权值低4位表示读取AC值需要读入多少bit
                     int nBit_read = weight & 0x0f;
-                    int ac_val = bis.readBits(nBit_read);
+                    int ac_val = convert(bis.readBitsString(nBit_read));
                     System.out.print(String.format(", (%2d, %2d)",pre_zeros,ac_val));
                 }
                 System.out.println(" END");
@@ -354,6 +366,18 @@ public class JPEGParser implements Closeable{
                 e.printStackTrace();
                 return 0;
             }
+        }
+
+        private int convert(String nStr){
+            if (nStr == null || nStr.length()==0){
+                return 0;
+            }
+            int num = Integer.parseInt(nStr, 2);
+            int max_val = 1<<(nStr.length()-1);
+            if (num < max_val ){
+                num = -(max_val<<1) + num+1;
+            }
+            return num;
         }
 
         protected boolean cmpByte2Str(byte[] bytes, int offset, String str){
