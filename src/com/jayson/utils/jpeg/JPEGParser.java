@@ -304,10 +304,18 @@ public class JPEGParser implements Closeable{
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+            } catch (MarkAppearException e) {
+                if (e.mark == (byte)0xD9){
+                    // EOI.End of Image
+                    System.out.println("End of Image.");
+                    return;
+                }else{
+                    e.printStackTrace();
+                }
             }
         }
 
-        private void scanColorUnit(BitInputStream bis, int color_num, int[] dc_base){
+        private void scanColorUnit(BitInputStream bis, int color_num, int[] dc_base) throws MarkAppearException {
 
             // YCbCr 扫描
             for (int color = 1; color <= color_num; ++color) {
@@ -320,7 +328,7 @@ public class JPEGParser implements Closeable{
             }
         }
 
-        private int scanColor(BitInputStream bis, int color_id, int dc_base){
+        private int scanColor(BitInputStream bis, int color_id, int dc_base) throws MarkAppearException {
             try {
                 JPEGInfo.JPEGLayer layer = mInfos.getLayer(color_id);
                 StringBuffer buf = new StringBuffer();
@@ -346,6 +354,7 @@ public class JPEGParser implements Closeable{
                                 .find(buf.toString());
                     }while ( weight == null );
                     if(weight == 0){
+                        System.out.print(String.format(", 0x%02x:",weight));
                         // 权值为0，代表剩下的AC分量全部为0
                         System.out.println(" END");
                         return dc_val;
@@ -357,7 +366,8 @@ public class JPEGParser implements Closeable{
                     // 权值低4位表示读取AC值需要读入多少bit
                     int nBit_read = weight & 0x0f;
                     int ac_val = convert(bis.readBitsString(nBit_read));
-                    System.out.print(String.format(", (%2d, %2d)",pre_zeros,ac_val));
+                    System.out.print(String.format(", 0x%02x:(%2d, %2d)",
+                            weight, pre_zeros, ac_val));
                 }
                 System.out.println(" END");
                 return dc_val;
@@ -365,6 +375,12 @@ public class JPEGParser implements Closeable{
             } catch (IOException e) {
                 e.printStackTrace();
                 return 0;
+            } catch (MarkAppearException e) {
+                // TODO 部分mark可以处理？
+//                if (e.mark == 0x00){
+//
+//                }
+                throw e;
             }
         }
 
@@ -393,6 +409,36 @@ public class JPEGParser implements Closeable{
 
 
     public class InvalidJpegFormatException extends Exception{
+        InvalidJpegFormatException(){
+            super();
+        }
+
+        InvalidJpegFormatException(String message){
+            super(message);
+        }
+
+        InvalidJpegFormatException(String message, Throwable throwable){
+            super(message, throwable);
+        }
+
+        InvalidJpegFormatException(Throwable throwable){
+            super(throwable);
+        }
+    }
+
+    public static class MarkAppearException extends Exception{
+
+        public int mark;
+
+        MarkAppearException(byte mark){
+            super(String.format("Mark 0xFF%02x Appear!", mark));
+            this.mark = mark;
+        }
+
+        MarkAppearException(byte mark, Throwable throwable){
+            super(String.format("Mark 0xFF%02x Appear!", mark), throwable);
+            this.mark = mark;
+        }
 
     }
 
