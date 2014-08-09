@@ -17,7 +17,7 @@ public class JPEGHuffman {
     Map<String, Integer> mPairs;
 
     JPEGHuffman(byte[] data){
-        System.out.println("Building Huffman Table...");
+//        System.out.println("Building Huffman Table...");
 
         mPairs = new HashMap<String, Integer>();
 
@@ -27,10 +27,10 @@ public class JPEGHuffman {
         mID = data[0] & 0x0f;
         switch (mType){
             case TYPE_AC:
-                System.out.println("AC - "+mID);
+//                System.out.println("AC - "+mID);
                 break;
             case TYPE_DC:
-                System.out.println("DC - "+mID);
+//                System.out.println("DC - "+mID);
                 break;
         }
         //不同位数的码字数量 - 16 字节
@@ -46,7 +46,7 @@ public class JPEGHuffman {
                 // 前置添0，保证码字长度为i
                 code_str = str_pad(i, Integer.toBinaryString(code));
                 ++code;
-                System.out.println("("+code_str+", "+(data[17+weight_ind] & 0xFF)+")");
+//                System.out.println("("+code_str+", "+(data[17+weight_ind] & 0xFF)+")");
                 mPairs.put(code_str.toString(), (data[17 + weight_ind] & 0xFF));
                 // 指向下一个权值位置
                 ++weight_ind;

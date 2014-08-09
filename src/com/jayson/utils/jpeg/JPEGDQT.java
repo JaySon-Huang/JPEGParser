@@ -11,10 +11,10 @@ public class JPEGDQT {
 
     private int[][] mTable;
 
-    public JPEGDQT(byte[] bytes, int precision) throws InvalidDQTSizeException {
+    public JPEGDQT(byte[] bytes, int precision) throws JPEGParser.InvalidJpegFormatException {
         int accept_length = 64*(precision+1) + 1;
         if(bytes.length != accept_length){
-            throw new InvalidDQTSizeException(accept_length, bytes.length);
+            throw new JPEGParser.InvalidJpegFormatException("Invalid DQT size:"+bytes.length);
         }
         mTable = new int[8][8];
         for (int i=0;i!=8;++i){
@@ -33,14 +33,6 @@ public class JPEGDQT {
 //                    mTable[i][j] = bytes[((i<<3)+j)+1];
 //                }
             }
-        }
-    }
-
-    public static class InvalidDQTSizeException extends Exception{
-        InvalidDQTSizeException(int exp, int get){
-            super();
-            System.err.println(
-                    String.format("Expect %d bytes DQT, %d bytes data receive!",exp,get));
         }
     }
 }
