@@ -1,0 +1,246 @@
+package com.jayson.utils.jpeg;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Created by JaySon on 14-8-9.
+ */
+public class JPEGImage {
+
+    /**
+     * JFIF 信息
+     */
+    byte JFIF_major_version = 1;
+    byte JFIF_minor_version = 1;
+    private String JFIF_unit;
+    private int JFIF_destiny_y;
+    private int JFIF_destiny_x;
+
+    /**
+     * App 信息
+     */
+    private Map<String, byte[]> mApp;
+
+    /**
+     * 量化表
+     */
+    private JPEGDQT[] mDQT;
+
+    /**
+     * 直流哈夫曼表
+     */
+    private JPEGHuffman[] mHuffmanDC;
+
+    /**
+     * 交流哈夫曼表
+     */
+    private JPEGHuffman[] mHuffmanAC;
+
+    /**
+     * 图像高宽
+     */
+    private int mHeight,mWidth;
+
+    /**
+     * 颜色空间
+     */
+    private String[] mColors;
+
+    /**
+     *     每一颜色层信息
+     */
+    private JPEGLayer[] mLayers;
+
+    /**
+     * 量化后每一个单元信息
+     */
+    private List<int[]> mDataUnits;
+
+
+    public JPEGImage(){
+        mApp = new HashMap<String, byte[]>();
+        mDQT = new JPEGDQT[4];
+        mHuffmanDC = new JPEGHuffman[2];
+        mHuffmanAC = new JPEGHuffman[2];
+        mDataUnits = new ArrayList<int[]>();
+    }
+
+    /**
+     * 设置图像高宽
+     * @param width     宽度
+     * @param height    高度
+     */
+    public void setSize(int width, int height){
+        mWidth = width;
+        mHeight = height;
+    }
+
+    /**
+     * @return 图像的高度
+     */
+    public int height(){
+        return mHeight;
+    }
+
+    /**
+     * @return 图像的宽度
+     */
+    public int width(){
+        return mWidth;
+    }
+
+    public void setAppInfo(String app, byte[] bytes){
+        mApp.put(app, bytes);
+    }
+
+    /**
+     * 设置jpeg量化表
+     * @param DQT_id    量化表id
+     * @param table     量化表
+     */
+    public void setDQT(int DQT_id, JPEGDQT table) {
+        mDQT[DQT_id] = table;
+    }
+
+    /**
+     * 设置色彩空间
+     * @param colors    色彩空间 JPEGParser.COLOR_XX
+     */
+    public void setColors(String[] colors){
+        mColors = colors;
+        mLayers = new JPEGLayer[colors.length];
+    }
+
+    /**
+     * 得到色彩空间
+     * @return  String数组,每一个String为颜色空间名字,如{"L"}、{"Y","Cr","Cb"}、{"C","M","Y","K"}
+     */
+    public String[] getColors(){
+        return mColors;
+    }
+
+    /**
+     * 设置图像颜色层信息
+     * @param layer 颜色层对象
+     */
+    public void addLayer(JPEGLayer layer) {
+        mLayers[layer.mColorID-1] = layer;
+    }
+
+    /**
+     * 返回图像颜色层信息
+     * @param color_id 颜色索引值，从1开始
+     * @return color_id 对应颜色层JPEGImage.JPEGLayer对象
+     */
+    public JPEGLayer getLayer(int color_id){
+        return mLayers[color_id-1];
+    }
+
+    /**
+     * 设置哈夫曼表
+     * @param huffman 哈夫曼表
+     */
+    public void setHuffman(JPEGHuffman huffman) {
+        switch(huffman.mType)
+        {
+            case JPEGHuffman.TYPE_DC:
+                mHuffmanDC[huffman.mID] = huffman;
+                break;
+            case JPEGHuffman.TYPE_AC:
+                mHuffmanAC[huffman.mID] = huffman;
+                break;
+
+            default:
+                System.err.println("Huffman Type error!");
+                break;
+        }
+    }
+
+    /**
+     * 得到哈夫曼表
+     * @param type  JPEGHuffman.TYPE_XX 直流/交流
+     * @param id    哈夫曼表id值
+     * @return      对应的哈夫曼表
+     */
+    public JPEGHuffman getHuffman(int type, int id){
+        switch (type)
+        {
+            case JPEGHuffman.TYPE_DC:
+                return mHuffmanDC[id];
+            case JPEGHuffman.TYPE_AC:
+                return mHuffmanAC[id];
+
+            default:
+                System.err.println("Huffman Type error!");
+                return null;
+        }
+    }
+
+    public void setJFIFInfo(int version, String jfif_unit, int jfif_destiny_x, int jfif_destiny_y){
+        JFIF_major_version = (byte) (version >>> 8);
+        JFIF_minor_version = (byte) (version & 0xFF);
+        JFIF_unit = jfif_unit;
+        JFIF_destiny_x = jfif_destiny_x;
+        JFIF_destiny_y = jfif_destiny_y;
+    }
+
+    public void addDataUnit(int[] unit){
+
+        mDataUnits.add(unit);
+    }
+
+    public List<int[]> getDataUnits(){
+        return mDataUnits;
+    }
+
+    /**
+     * JPEG 颜色层信息对象
+     */
+    public static class JPEGLayer{
+
+        /**
+         * 颜色空间索引值,从1开始
+         */
+        int mColorID;
+
+        /**
+         * 水平量化因子
+         */
+        int mVSamp;
+
+        /**
+         * 垂直量化因子
+         */
+        int mHSamp;
+
+        /**
+         * 颜色层对应量化表id
+         */
+        int mDQTID;
+
+        /**
+         * 颜色层对应直流哈夫曼表id
+         */
+        int mDCHuffmanID;
+
+        /**
+         * 颜色层对于交流哈夫曼表id
+         */
+        int mACHuffmanID;
+
+        JPEGLayer(int colorID, int vSamp, int hSamp, int DQT_id){
+            mColorID = colorID;
+            mVSamp = vSamp;
+            mHSamp = hSamp;
+            mDQTID = DQT_id;
+        }
+
+        void setHuffman(int dc_huffman_id, int ac_huffman_id){
+            mDCHuffmanID = dc_huffman_id;
+            mACHuffmanID = ac_huffman_id;
+        }
+    }
+}
