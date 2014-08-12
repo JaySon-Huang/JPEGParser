@@ -429,11 +429,6 @@ public class JPEGParser implements Closeable{
             this.mark = mark;
         }
 
-        MarkAppearException(byte mark, Throwable throwable){
-            super(String.format("Mark 0xFF%02x Appear!", mark), throwable);
-            this.mark = mark;
-        }
-
     }
 
     public static void main(String[] args){

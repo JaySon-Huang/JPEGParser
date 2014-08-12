@@ -34,12 +34,61 @@ public class Historgram implements Cloneable{
         }
     }
 
+    public void subN(int n){
+        assert mHistorgram.containsKey(n);
+        mHistorgram.put(n, mHistorgram.get(n)-1);
+    }
+
+    public void setN(int n, int num){
+        mHistorgram.put(n, num);
+    }
+
     public int getN(int n){
         if (mHistorgram.containsKey(n)){
             return mHistorgram.get(n);
         }else{
             return 0;
         }
+    }
+
+    /**
+     * 对直方图进行平移，留出存储额外信息的空间
+     */
+    public void shift(){
+        // FIXME: 实现之
+
+    }
+
+    public void unshift(){
+        // FIXME: 实现之
+    }
+
+    private void findZ(int[] z, int left, int right){
+        int pos = left-1;
+        while (true){
+            if (this.getN(pos) == 0){
+                z[0] = pos;
+                break;
+            }else{
+                --pos;
+            }
+        }
+
+        pos = right + 1;
+        while (true){
+            if (this.getN(pos) == 0){
+                z[1] = pos;
+                break;
+            }else{
+                ++pos;
+            }
+        }
+
+        // FIXME:
+    }
+
+    public void clear(){
+        mHistorgram.clear();
     }
 
     public void print(PrintStream ps){
