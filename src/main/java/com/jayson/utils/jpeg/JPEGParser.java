@@ -90,6 +90,10 @@ public class JPEGParser implements Closeable{
                     case JPEGMarkInfo.TYPE_DHT:
                         parser.parseDHT(marker);
                         break;
+                    case JPEGMarkInfo.TYPE_DRI:
+                        System.err.println("DRI happen!");
+                        parser.parseDRI(marker);
+                        break;
                     case JPEGMarkInfo.TYPE_SKIP:
                         parser.parseSkip(marker);
                         break;
@@ -100,7 +104,7 @@ public class JPEGParser implements Closeable{
                         return imgObject;
 
                     default:
-                        System.out.print("unhandled mark:" + marker);
+                        System.err.print("unhandled mark:" + marker);
                         break;
                 }
 
@@ -129,6 +133,16 @@ public class JPEGParser implements Closeable{
         }
 
         void parseSkip(int marker){
+            try {
+                byte[] bytes = new byte[2];
+                mIs.read(bytes);
+                int num = i16(bytes)-2;
+                bytes = new byte[num];
+                mIs.read(bytes);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
         }
 
@@ -143,21 +157,39 @@ public class JPEGParser implements Closeable{
                 String app = String.format("APP%d", (marker&0xF));
                 mImg.setAppInfo(app, bytes);
                 if (marker == 0xFFE0 && cmpByte2Str(bytes,0,"JFIF\0")){
-                    // TODO 有关图片的参数
+
+                    // JFIF版本号
                     int version = i16(bytes, 5);
-                    String jfif_unit="None";
-                    int jfif_destiny_x,jfif_destiny_y;
+                    String jfif_unit;
                     switch (bytes[7]){
-                        case 1:
+                        case 1:// 点数/英寸
                             jfif_unit = "points/inch";
                             break;
-                        case 2:
+                        case 2:// 点数/厘米
                             jfif_unit = "points/cm";
                             break;
+
+                        default:// 无单位
+                            jfif_unit = "None";
+                            break;
                     }
+
+                    // 水平分辨率、竖直分辨率
+                    int jfif_destiny_x,jfif_destiny_y;
                     jfif_destiny_x = i16(bytes, 8);
                     jfif_destiny_y = i16(bytes, 10);
                     mImg.setJFIFInfo(version, jfif_unit, jfif_destiny_x, jfif_destiny_y);
+
+                    // 缩略图水平像素数目、竖直像素数目
+                    int thumbnail_horizontal_pixels, thumbnail_vertical_pixels;
+                    thumbnail_horizontal_pixels = bytes[12];
+                    thumbnail_vertical_pixels = bytes[13];
+                    int thumbnail_size = 3*thumbnail_horizontal_pixels*thumbnail_vertical_pixels;
+                    int[] thumbnail_RGB_bitmap = new int[thumbnail_size];
+                    for (int i = 0; i != thumbnail_size; ++i){
+                        thumbnail_RGB_bitmap[i] = (bytes[i+14] & 0xff);
+                    }
+                    mImg.setThumbnail(thumbnail_horizontal_pixels, thumbnail_vertical_pixels, thumbnail_RGB_bitmap);
                 }else if(marker == 0xFFE1 && cmpByte2Str(bytes,0,"Exif\0")){
                     // TODO 解析exif信息
                 }else if(marker == 0xFFE2 && cmpByte2Str(bytes,0,"FPXR\0")){
@@ -284,6 +316,10 @@ public class JPEGParser implements Closeable{
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+        public void parseDRI(int marker) {
+            
         }
 
         private void startScan(){

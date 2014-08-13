@@ -19,6 +19,7 @@ public class JPEGImage {
     private String JFIF_unit;
     private int JFIF_destiny_y;
     private int JFIF_destiny_x;
+    private Thumbnail mThumbnail;
 
     /**
      * App 信息
@@ -206,6 +207,23 @@ public class JPEGImage {
 
     public List<int[]> getDataUnits(){
         return mDataUnits;
+    }
+
+    public void setThumbnail(int thumbnail_horizontal_pixels,
+                             int thumbnail_vertical_pixels,
+                             int[] thumbnail_rgb_bitmap) {
+        mThumbnail = new Thumbnail();
+        mThumbnail.width = thumbnail_horizontal_pixels;
+        mThumbnail.height = thumbnail_vertical_pixels;
+        mThumbnail.rgb = thumbnail_rgb_bitmap;
+    }
+
+    /**
+     * 略缩图信息
+     */
+    public static class Thumbnail{
+        int width, height;
+        int[] rgb;
     }
 
     /**
