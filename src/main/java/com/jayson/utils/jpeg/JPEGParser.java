@@ -6,10 +6,11 @@ import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 
 import static com.jayson.utils.jpeg.b2i.i16;
@@ -185,7 +186,7 @@ public class JPEGParser implements Closeable{
             }
         }
 
-        void parseDQT(int marker) throws InvalidJpegFormatException {
+        void parseDQT(int marker) {
             try {
                 byte[] bytes = new byte[2];
                 mIs.read(bytes);
@@ -193,9 +194,13 @@ public class JPEGParser implements Closeable{
                 bytes = new byte[num];
                 mIs.read(bytes);
 
-                int precision = bytes[0] >>> 4;
-                int DQT_id = bytes[0] & 0x0f;
-                mImg.setDQT(DQT_id, new JPEGDQT(bytes, precision));
+                // 一个DQT块可能定义几个量化表
+                int handle_index = 0;
+                while (handle_index < num){
+                    JPEGDQT dqt = new JPEGDQT(bytes, handle_index);
+                    handle_index += 1 + 64 * (dqt.getPrecision()+1);
+                    mImg.setDQT(dqt);
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -211,7 +216,7 @@ public class JPEGParser implements Closeable{
 
                 int precision = bytes[0];
                 if (precision != 8){
-                    throw new InvalidJpegFormatException();
+                    throw new InvalidJpegFormatException("当前图像每个数据样本的位数为:"+precision+".只支持解析样本位数为8位的图像");
                 }
                 int height = i16(bytes, 1);
                 int width = i16(bytes, 3);
@@ -236,7 +241,7 @@ public class JPEGParser implements Closeable{
                     int v_samp = bytes[i+1] >>> 4;
                     int h_samp = bytes[i+1] & 0x0f;
                     int DQT_id = bytes[i+2];
-                    mImg.addLayer(new JPEGImage.JPEGLayer(color_id, v_samp, h_samp, DQT_id));
+                    mImg.setLayer(new JPEGImage.JPEGLayer(color_id, v_samp, h_samp, DQT_id));
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -251,8 +256,12 @@ public class JPEGParser implements Closeable{
                 bytes = new byte[num];
                 mIs.read(bytes);
 
-                JPEGHuffman ht = new JPEGHuffman(bytes);
-                mImg.setHuffman(ht);
+                int[] scan_index = new int[]{0};
+                JPEGHuffman ht;
+                while (scan_index[0] < num) {
+                    ht = new JPEGHuffman(bytes, scan_index);
+                    mImg.setHuffman(ht);
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -282,10 +291,10 @@ public class JPEGParser implements Closeable{
         private void startScan(){
             try {
                 BitInputStream bis = new BitInputStream(mIs);
-                int color_num = mImg.getColors().length;
-                int[] dc_base = new int[color_num];
+                Set<Integer> color_ids = mImg.getColorIDs();
+                Map<Integer, Integer> dc_base = new HashMap<Integer, Integer>();
                 while (true) {
-                    scanColorUnit(bis, color_num, dc_base);
+                    scanColorUnit(bis, color_ids, dc_base);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -300,22 +309,23 @@ public class JPEGParser implements Closeable{
             }
         }
 
-        private void scanColorUnit(BitInputStream bis, int color_num, int[] dc_base) throws MarkAppearException {
+        private void scanColorUnit(BitInputStream bis, Set<Integer> color_ids, Map<Integer, Integer> dc_base) throws MarkAppearException {
 
-            // YCbCr 扫描
-            for (int color = 1; color <= color_num; ++color) {
-                JPEGImage.JPEGLayer layer = mImg.getLayer(color);
+            // 对颜色空间进行扫描
+            for (int color_id : color_ids) {
+                JPEGImage.JPEGLayer layer = mImg.getLayer(color_id);
+                // 对每一种颜色的采样值进行扫描
                 for (int i = 0; i != layer.mHSamp*layer.mVSamp; ++i){
 //                    System.out.print(mImg.getColors()[color - 1] + ":");
                     // 更新DC基值
-                    dc_base[color - 1] = scanColor(bis, color, dc_base[color - 1]);
+                    int dc_new = scanColor(bis, layer, dc_base.getOrDefault(color_id, 0));
+                    dc_base.put(color_id, dc_new);
                 }
             }
         }
 
-        private int scanColor(BitInputStream bis, int color_id, int dc_base) throws MarkAppearException {
+        private int scanColor(BitInputStream bis, JPEGImage.JPEGLayer layer, int dc_base) throws MarkAppearException {
             try {
-                JPEGImage.JPEGLayer layer = mImg.getLayer(color_id);
                 JPEGHuffman huffman;
                 StringBuffer buf = new StringBuffer();
                 Integer weight;
@@ -443,30 +453,49 @@ public class JPEGParser implements Closeable{
 //            e.printStackTrace();
 //        }
 
+        String[] pics = {
+                "/Users/JaySon/Desktop/test.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_085331.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_085558.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_090150.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_092000.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_115427.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_140426.jpg",
+                "/Users/JaySon/Pictures/IMG_20140810_122739.jpg",
+                "/Users/JaySon/Pictures/IMG_20140810_122739_1.jpg",
+                "/Users/JaySon/Pictures/IMG_20140810_122741.jpg",
+                "/Users/JaySon/Pictures/IMG_20140810_151927.jpg",
+                "/Users/JaySon/Pictures/PANO_20140613_191243.jpg",
+                "/Users/JaySon/Pictures/周 颠倒.jpg"
+        };
+
         try {
-
-            JPEGParser parser = new JPEGParser("/Users/JaySon/Desktop/test.jpg");
-            JPEGImage img = parser.parse();
-
             Historgram[] historgrams = new Historgram[64];
-            for (int i = 0; i != historgrams.length; ++i){
-                historgrams[i] = new Historgram();
-            }
-            for (int[] dataUnit: img.getDataUnits()){
-//                System.out.println("[");
-                for (int i = 0; i != 8; ++i){
-                    for (int j = 0; j != 8; ++j){
-                        historgrams[i*8+j].addN(dataUnit[i*8+j]);
-//                        System.out.print(String.format("%3d ,", dataUnit[i*8+j]));
-                    }
-//                    System.out.println();
-                }
-//                System.out.println("]");
-            }
+            for (String pic : pics) {
+                System.out.println("Parsing:"+pic);
+                JPEGParser parser = new JPEGParser(pic);
+                JPEGImage img = parser.parse();
 
-            for (int i = 0; i != 64; ++i){
-                System.out.print(String.format("%3d:",i));
-                historgrams[i].print(System.out);
+                for (int i = 0; i != historgrams.length; ++i) {
+                    historgrams[i] = new Historgram();
+                }
+                for (int[] dataUnit : img.getDataUnits()) {
+//                System.out.println("[");
+                    for (int i = 0; i != 8; ++i) {
+                        for (int j = 0; j != 8; ++j) {
+                            historgrams[i * 8 + j].addN(dataUnit[i * 8 + j]);
+//                        System.out.print(String.format("%3d ,", dataUnit[i*8+j]));
+                        }
+//                    System.out.println();
+                    }
+//                System.out.println("]");
+                }
+
+                for (int i = 0; i != 64; ++i) {
+                    System.out.print(String.format("%3d:", i));
+                    historgrams[i].print(System.out);
+                }
+                System.out.println("total:" + img.getDataUnits().size() + " units");
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();

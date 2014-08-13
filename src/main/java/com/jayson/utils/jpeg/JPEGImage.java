@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by JaySon on 14-8-9.
@@ -52,7 +53,7 @@ public class JPEGImage {
     /**
      *     每一颜色层信息
      */
-    private JPEGLayer[] mLayers;
+    private Map<Integer, JPEGLayer> mLayers;
 
     /**
      * 量化后每一个单元信息
@@ -92,17 +93,21 @@ public class JPEGImage {
         return mWidth;
     }
 
+    /**
+     * @return 图像高*宽
+     */
+    public int size(){  return mHeight*mWidth; }
+
     public void setAppInfo(String app, byte[] bytes){
         mApp.put(app, bytes);
     }
 
     /**
      * 设置jpeg量化表
-     * @param DQT_id    量化表id
      * @param table     量化表
      */
-    public void setDQT(int DQT_id, JPEGDQT table) {
-        mDQT[DQT_id] = table;
+    public void setDQT(JPEGDQT table) {
+        mDQT[table.getID()] = table;
     }
 
     /**
@@ -111,7 +116,7 @@ public class JPEGImage {
      */
     public void setColors(String[] colors){
         mColors = colors;
-        mLayers = new JPEGLayer[colors.length];
+        mLayers = new HashMap<Integer, JPEGLayer>();
     }
 
     /**
@@ -126,8 +131,15 @@ public class JPEGImage {
      * 设置图像颜色层信息
      * @param layer 颜色层对象
      */
-    public void addLayer(JPEGLayer layer) {
-        mLayers[layer.mColorID-1] = layer;
+    public void setLayer(JPEGLayer layer) {
+        mLayers.put(layer.mColorID, layer);
+    }
+
+    /**
+     * @return 图像颜色层对应id
+     */
+    public Set<Integer> getColorIDs(){
+        return mLayers.keySet();
     }
 
     /**
@@ -136,7 +148,7 @@ public class JPEGImage {
      * @return color_id 对应颜色层JPEGImage.JPEGLayer对象
      */
     public JPEGLayer getLayer(int color_id){
-        return mLayers[color_id-1];
+        return mLayers.get(color_id);
     }
 
     /**
