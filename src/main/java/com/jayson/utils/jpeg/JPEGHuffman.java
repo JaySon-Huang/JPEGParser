@@ -57,6 +57,7 @@ public class JPEGHuffman {
             // 指向下一个码字数量
             ++code_ind;
         }
+        // 更新已处理的字节索引值，以便处理一个块中定义多个哈夫曼表的情况
         scan_index[0] = weight_ind;
     }
 

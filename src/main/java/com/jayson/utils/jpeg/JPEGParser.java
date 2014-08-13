@@ -195,10 +195,9 @@ public class JPEGParser implements Closeable{
                 mIs.read(bytes);
 
                 // 一个DQT块可能定义几个量化表
-                int handle_index = 0;
-                while (handle_index < num){
-                    JPEGDQT dqt = new JPEGDQT(bytes, handle_index);
-                    handle_index += 1 + 64 * (dqt.getPrecision()+1);
+                int[] scan_index = new int[]{0};
+                while (scan_index[0] < num){
+                    JPEGDQT dqt = new JPEGDQT(bytes, scan_index);
                     mImg.setDQT(dqt);
                 }
             } catch (IOException e) {
@@ -257,9 +256,8 @@ public class JPEGParser implements Closeable{
                 mIs.read(bytes);
 
                 int[] scan_index = new int[]{0};
-                JPEGHuffman ht;
                 while (scan_index[0] < num) {
-                    ht = new JPEGHuffman(bytes, scan_index);
+                    JPEGHuffman ht = new JPEGHuffman(bytes, scan_index);
                     mImg.setHuffman(ht);
                 }
             } catch (IOException e) {

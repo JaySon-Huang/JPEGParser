@@ -13,11 +13,11 @@ public class JPEGDQT {
     private int mID;
     private int mPrecision;
 
-    public JPEGDQT(byte[] bytes, int beg) {
+    public JPEGDQT(byte[] bytes, int[] scan_index) {
         // 偏移值0处，高四位为精度值 0/1
-        mPrecision = bytes[beg] >>> 4;
+        mPrecision = bytes[scan_index[0]] >>> 4;
         // 低四位为量化表id
-        mID = bytes[beg] & 0x0f;
+        mID = bytes[scan_index[0]] & 0x0f;
 
         // 获取量化表实际值
         // DQT内容从偏移量1处开始
@@ -25,8 +25,8 @@ public class JPEGDQT {
         for (int i = 0; i != 64; ++i){
             mTable[i] =
                 ( (mPrecision == PRECISION_16)?
-                    i16(bytes, (i<<1) +1+beg ):
-                    bytes[i +1+beg] );
+                    i16(bytes, (i<<1) +1+scan_index[0] ):
+                    bytes[i +1+scan_index[0]] );
 //                int ind;
 //                if (precision == PRECISION_16){
 //                    ind = (((i<<3)+j)<<1)+1;
@@ -36,6 +36,8 @@ public class JPEGDQT {
 //                    mTable[i][j] = bytes[((i<<3)+j)+1];
 //                }
         }
+        // 更新已处理的字节索引值，以便处理一个块中定义多个量化表的情况
+        scan_index[0] += 1 + 64 * (mPrecision+1);
     }
 
     public int getID(){
