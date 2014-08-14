@@ -319,7 +319,7 @@ public class JPEGParser implements Closeable{
         }
 
         public void parseDRI(int marker) {
-            
+
         }
 
         private void startScan(){
@@ -333,17 +333,12 @@ public class JPEGParser implements Closeable{
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (MarkAppearException e) {
-                if (e.mark == (byte)0xD9){
-                    // EOI.End of Image
-//                    System.out.println("End of Image.");
-                    return;
-                }else{
-                    e.printStackTrace();
-                }
+                // EOI.End of Image
+                System.out.println("End of Image.");
             }
         }
 
-        private void scanColorUnit(BitInputStream bis, Set<Integer> color_ids, Map<Integer, Integer> dc_base) throws MarkAppearException {
+        private void scanColorUnit(BitInputStream bis, Set<Integer> color_ids, Map<Integer, Integer> dc_base) throws MarkAppearException, IOException {
 
             // 对颜色空间进行扫描
             for (int color_id : color_ids) {
@@ -352,81 +347,80 @@ public class JPEGParser implements Closeable{
                 for (int i = 0; i != layer.mHSamp*layer.mVSamp; ++i){
 //                    System.out.print(mImg.getColors()[color - 1] + ":");
                     // 更新DC基值
-                    int dc_new = scanColor(bis, layer, dc_base.getOrDefault(color_id, 0));
-                    dc_base.put(color_id, dc_new);
+                    int dc_new = 0;
+                    try {
+                        dc_new = scanColor(bis, layer, dc_base.getOrDefault(color_id, 0));
+                        // 更新base值
+                        dc_base.put(color_id, dc_new);
+                    } catch (MarkAppearException e){
+                        // EOI标志
+                        if (e.mark == 0xD9){
+                            throw e;
+                        }
+                        // RSTn标志,重置base值 FIXME : 这样处理?
+                        dc_base.put(color_id, 0);
+                    }
                 }
             }
         }
 
-        private int scanColor(BitInputStream bis, JPEGImage.JPEGLayer layer, int dc_base) throws MarkAppearException {
-            try {
-                JPEGHuffman huffman;
-                StringBuffer buf = new StringBuffer();
-                Integer weight;
-                int[] unit = new int[64];
-                // 找到直流分量对应的权值，权值表示读取DC diff值需要读入多少bit
-                do {
-                    buf.append(bis.readBit());
-                    huffman = mImg.getHuffman(JPEGHuffman.TYPE_DC, layer.mDCHuffmanID);
-                    weight = huffman.find(buf.toString());
-                }while (weight == null);
-                // DC实际值为diff值(读出)+上一Unit的DC值
-                int dc_val = dc_base + convert(bis.readBitsString(weight));
-                unit[0] = dc_val;
+        private int scanColor(BitInputStream bis, JPEGImage.JPEGLayer layer, int dc_base) throws MarkAppearException, IOException {
+            JPEGHuffman huffman;
+            StringBuffer buf = new StringBuffer();
+            Integer weight;
+            int[] unit = new int[64];
+            // 找到直流分量对应的权值，权值表示读取DC diff值需要读入多少bit
+            do {
+                buf.append(bis.readBit());
+                huffman = mImg.getHuffman(JPEGHuffman.TYPE_DC, layer.mDCHuffmanID);
+                weight = huffman.find(buf.toString());
+            }while (weight == null);
+            // DC实际值为diff值(读出)+上一Unit的DC值
+            int dc_val = dc_base + convert(bis.readBitsString(weight));
+            unit[0] = dc_val;
 //                System.out.print(String.format("DC:%3d",dc_val));
 //                System.out.print(" AC:");
 
-                // 最多63个交流分量的值
-                for (int i = 1; i < 64; ++i){
-                    // 找到一个交流分量对应的值
-                    buf = new StringBuffer();
-                    do {
-                        buf.append(bis.readBit());
-                        huffman = mImg.getHuffman(JPEGHuffman.TYPE_AC, layer.mACHuffmanID);
-                        weight = huffman.find(buf.toString());
-                    }while ( weight == null );
+            // 最多63个交流分量的值
+            for (int i = 1; i < 64; ++i){
+                // 找到一个交流分量对应的值
+                buf = new StringBuffer();
+                do {
+                    buf.append(bis.readBit());
+                    huffman = mImg.getHuffman(JPEGHuffman.TYPE_AC, layer.mACHuffmanID);
+                    weight = huffman.find(buf.toString());
+                }while ( weight == null );
 
-                    // 权值为0,代表后续的交流分量全部为0
-                    if(weight == 0){
+                // 权值为0,代表后续的交流分量全部为0
+                if(weight == 0){
 //                        System.out.print(String.format(", 0x%02x:",weight));
-                        // 权值为0，代表剩下的AC分量全部为0
-                        for ( ; i < 64; ++i){
-                            // 后面的位置全部填充0
-                            unit[i] = 0;
-                        }
-                        break;
+                    // 权值为0，代表剩下的AC分量全部为0
+                    for ( ; i < 64; ++i){
+                        // 后面的位置全部填充0
+                        unit[i] = 0;
                     }
+                    break;
+                }
 
-                    // 权值高4位表示前置有多少个0
-                    int pre_zeros = weight >>> 4;
-                    // 填充前置0
-                    for (int j = 0; j != pre_zeros; ++j){
-                        unit[i+pre_zeros] = 0;
-                    }
-                    // 进行累加，i超过64则跳出
-                    i += pre_zeros;
-                    // 权值低4位表示读取AC值需要读入多少bit
-                    int nBit_read = weight & 0x0f;
-                    int ac_val = convert(bis.readBitsString(nBit_read));
-                    // 填充交流分量
-                    unit[i] = ac_val;
+                // 权值高4位表示前置有多少个0
+                int pre_zeros = weight >>> 4;
+                // 填充前置0
+                for (int j = 0; j != pre_zeros; ++j){
+                    unit[i+pre_zeros] = 0;
+                }
+                // 进行累加，i超过64则跳出
+                i += pre_zeros;
+                // 权值低4位表示读取AC值需要读入多少bit
+                int nBit_read = weight & 0x0f;
+                int ac_val = convert(bis.readBitsString(nBit_read));
+                // 填充交流分量
+                unit[i] = ac_val;
 //                    System.out.print(String.format(", 0x%02x:(%2d, %2d)",
 //                            weight, pre_zeros, ac_val));
-                }
-                mImg.addDataUnit(unit);
-//                System.out.println(" END");
-                return dc_val;
-
-            } catch (IOException e) {
-                e.printStackTrace();
-                return 0;
-            } catch (MarkAppearException e) {
-                // TODO 部分mark可以处理？
-//                if ((e.mark&0xf0) == 0xd0){
-//
-//                }
-                throw e;
             }
+            mImg.addDataUnit(unit);
+//                System.out.println(" END");
+            return dc_val;
         }
 
         private int convert(String nStr){
