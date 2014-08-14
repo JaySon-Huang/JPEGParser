@@ -354,10 +354,11 @@ public class JPEGParser implements Closeable{
                         dc_base.put(color_id, dc_new);
                     } catch (MarkAppearException e){
                         // EOI标志
-                        if (e.mark == 0xD9){
+                        if (e.mark == 0xd9){
                             throw e;
                         }
                         // RSTn标志,重置base值 FIXME : 这样处理?
+                        System.err.println("Mark : RSTn "+e.mark+" color:"+color_id);
                         dc_base.put(color_id, 0);
                     }
                 }
@@ -378,8 +379,8 @@ public class JPEGParser implements Closeable{
             // DC实际值为diff值(读出)+上一Unit的DC值
             int dc_val = dc_base + convert(bis.readBitsString(weight));
             unit[0] = dc_val;
-//                System.out.print(String.format("DC:%3d",dc_val));
-//                System.out.print(" AC:");
+//            System.out.print(String.format("DC:%3d",dc_val));
+//            System.out.print(" AC:");
 
             // 最多63个交流分量的值
             for (int i = 1; i < 64; ++i){
@@ -393,7 +394,7 @@ public class JPEGParser implements Closeable{
 
                 // 权值为0,代表后续的交流分量全部为0
                 if(weight == 0){
-//                        System.out.print(String.format(", 0x%02x:",weight));
+//                    System.out.print(String.format(", 0x%02x:",weight));
                     // 权值为0，代表剩下的AC分量全部为0
                     for ( ; i < 64; ++i){
                         // 后面的位置全部填充0
@@ -415,11 +416,11 @@ public class JPEGParser implements Closeable{
                 int ac_val = convert(bis.readBitsString(nBit_read));
                 // 填充交流分量
                 unit[i] = ac_val;
-//                    System.out.print(String.format(", 0x%02x:(%2d, %2d)",
-//                            weight, pre_zeros, ac_val));
+//                System.out.print(String.format(", 0x%02x:(%2d, %2d)",
+//                        weight, pre_zeros, ac_val));
             }
             mImg.addDataUnit(unit);
-//                System.out.println(" END");
+//            System.out.println(" END");
             return dc_val;
         }
 
@@ -435,7 +436,7 @@ public class JPEGParser implements Closeable{
             return num;
         }
 
-        protected boolean cmpByte2Str(byte[] bytes, int offset, String str){
+        private boolean cmpByte2Str(byte[] bytes, int offset, String str){
             for (int i=0;i!=str.length();++i){
                 if(str.charAt(i) != bytes[offset+i]){
                     return false;
@@ -462,7 +463,7 @@ public class JPEGParser implements Closeable{
 
         public int mark;
 
-        MarkAppearException(byte mark){
+        MarkAppearException(int mark){
             super(String.format("Mark 0xFF%02x Appear!", mark));
             this.mark = mark;
         }

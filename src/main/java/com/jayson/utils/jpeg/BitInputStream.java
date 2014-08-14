@@ -26,7 +26,7 @@ public class BitInputStream{
     }
 
     public int readBit() throws IOException, JPEGParser.MarkAppearException {
-        int retVal = 0;
+        int retVal;
         // 当前mBytePos指向字节已经读完
         if(mBitPos == 8){
 
@@ -68,10 +68,11 @@ public class BitInputStream{
 
                     // 0xD9 - EOI
                     case 0xD9:
-                        throw new JPEGParser.MarkAppearException((byte) 0xD9);
+                        throw new JPEGParser.MarkAppearException(0xD9);
 
-                    // 0xD0~D7 - RSTn
+                        // 0xD0~D7 - RSTn
                     case 0xD0:case 0xD1:case 0xD2:case 0xD3:case 0xD4:case 0xD5:case 0xD6:case 0xD7:
+                        System.err.println(String.format("0xff%02x happen!",mByteBuf[mBytePos+1]));
                         // 忽略RST标志
                         mBytePos += 2;
                         // 抛出异常，在上层函数处理RST调整译码变量
@@ -79,11 +80,12 @@ public class BitInputStream{
 
                     // 忽视之?
                     case 0xFF:// FIXME : 这样处理?
+                        System.err.println(String.format("0xff%02x happen!",mByteBuf[mBytePos+1]));
                         mBytePos += 2;
                         break;
 
                     default:// FIXME : 这样处理?
-//                        System.out.println(String.format("0xFF%02x appear! ",mByteBuf[mBytePos+1]));
+                        System.err.println(String.format("0xff%02x happen!",mByteBuf[mBytePos+1]));
                         ++mBytePos;
                         break;
                 }
