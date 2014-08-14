@@ -324,7 +324,7 @@ public class JPEGParser implements Closeable{
 
         private void startScan(){
             try {
-                BitInputStream bis = new BitInputStream(mIs);
+                JPEGBitInputStream bis = new JPEGBitInputStream(mIs);
                 Set<Integer> color_ids = mImg.getColorIDs();
                 Map<Integer, Integer> dc_base = new HashMap<Integer, Integer>();
                 while (true) {
@@ -338,7 +338,7 @@ public class JPEGParser implements Closeable{
             }
         }
 
-        private void scanColorUnit(BitInputStream bis, Set<Integer> color_ids, Map<Integer, Integer> dc_base) throws MarkAppearException, IOException {
+        private void scanColorUnit(JPEGBitInputStream bis, Set<Integer> color_ids, Map<Integer, Integer> dc_base) throws MarkAppearException, IOException {
 
             // 对颜色空间进行扫描
             for (int color_id : color_ids) {
@@ -365,7 +365,7 @@ public class JPEGParser implements Closeable{
             }
         }
 
-        private int scanColor(BitInputStream bis, JPEGImage.JPEGLayer layer, int dc_base) throws MarkAppearException, IOException {
+        private int scanColor(JPEGBitInputStream bis, JPEGImage.JPEGLayer layer, int dc_base) throws MarkAppearException, IOException {
             JPEGHuffman huffman;
             StringBuffer buf = new StringBuffer();
             Integer weight;

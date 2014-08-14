@@ -4,21 +4,25 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Created by JaySon on 14-8-6.
+ * Package : com.jayson.utils.jpeg
+ * Author  : JaySon
+ * Date    : 14-8-6
  */
-public class BitInputStream{
+public class JPEGBitInputStream {
 
-    private InputStream mIs;
+    public final static int DEFAULT_BUFFER_SIZE = 1024;
 
-    private byte[] mByteBuf;
-    private int mBytePos;
-    private int mBitPos;
+    protected InputStream mIs;
 
-    public BitInputStream(InputStream is) throws IOException {
-        this(is, 1024);
+    protected byte[] mByteBuf;
+    protected int mBytePos;
+    protected int mBitPos;
+
+    public JPEGBitInputStream(InputStream is) throws IOException {
+        this(is, DEFAULT_BUFFER_SIZE);
     }
 
-    public BitInputStream(InputStream is, int buffsize) throws IOException {
+    public JPEGBitInputStream(InputStream is, int buffsize) throws IOException {
         mIs = is;
         mByteBuf = new byte[buffsize];
         mIs.read(mByteBuf);
@@ -121,5 +125,4 @@ public class BitInputStream{
         }
         return sb.toString();
     }
-
 }
