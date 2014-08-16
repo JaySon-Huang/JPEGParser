@@ -1,6 +1,7 @@
-/build
-/src/androidTest
-/src/res
-/src/java/com/jayson/RDHCipher
-/src/java/com/jayson/secretcamera
-/src/java/com/jayson/utils/ThreadPool.java
+build/
+src/androidTest/
+src/res/
+src/java/com/jayson/RDHCipher/
+src/java/com/jayson/secretcamera/
+src/java/com/jayson/utils/ThreadPool.java
+build.grandle
