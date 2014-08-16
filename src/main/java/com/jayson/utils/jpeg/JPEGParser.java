@@ -498,11 +498,12 @@ public class JPEGParser implements Closeable{
                 "/Users/JaySon/Pictures/周 颠倒.jpg"
         };
 
+        JPEGParser parser = null;
         try {
             Historgram[] historgrams = new Historgram[64];
             for (String pic : pics) {
                 System.out.println("Parsing:"+pic);
-                JPEGParser parser = new JPEGParser(pic);
+                parser = new JPEGParser(pic);
                 JPEGImage img = parser.parse();
 
                 for (int i = 0; i != historgrams.length; ++i) {
@@ -535,6 +536,13 @@ public class JPEGParser implements Closeable{
         } finally {
             if (ps != null) {
                 ps.close();
+            }
+            try {
+                if (parser != null) {
+                    parser.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
 
