@@ -52,18 +52,38 @@ public class Historgram implements Cloneable{
     }
 
     /**
-     * 对直方图进行平移，留出存储额外信息的空间
+     * 对直方图进行平移,空出左基准-1,右基准+1,留出存储额外信息的空间
+     * @param left  左基准
+     * @param right 右基准
      */
-    public void shift(){
+    public void shift(int left, int right){
         // FIXME: 实现之
+        int[] z = findZ(left, right);
+        System.out.println(String.format("z1, z2:%3d, %3d", z[0], z[1]));
+        System.out.print("Before shift:");this.print(System.out);
 
+        // z[0] 左边的全部左移
+        for (int i = -512+1; i != z[0]; ++i){
+            if (mHistorgram.containsKey(i)){
+                mHistorgram.put(i-1, mHistorgram.get(i));
+            }
+        }
+        // z[1] 右边的全部右移
+        for (int i = 511; i != z[1]; --i){
+            if (mHistorgram.containsKey(i)){
+                mHistorgram.put(i+1, mHistorgram.get(i));
+            }
+        }
+
+        System.out.print("After shift:");this.print(System.out);
     }
 
     public void unshift(){
         // FIXME: 实现之
     }
 
-    private void findZ(int[] z, int left, int right){
+    private int[] findZ(int left, int right){
+        int[] z = new int[2];
         int pos = left-1;
         while (true){
             if (this.getN(pos) == 0){
@@ -85,6 +105,7 @@ public class Historgram implements Cloneable{
         }
 
         // FIXME:
+        return z;
     }
 
     public void clear(){
