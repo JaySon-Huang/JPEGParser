@@ -1,7 +1,12 @@
 build/
-src/androidTest/
-src/res/
-src/java/com/jayson/RDHCipher/
-src/java/com/jayson/secretcamera/
-src/java/com/jayson/utils/ThreadPool.java
 build.grandle
+*.iml
+proguard-rules.pro
+
+src/androidTest/
+src/main/AndroidManifest.xml
+src/main/java/com/jayson/RDHCipher/
+src/main/java/com/jayson/secretcamera/
+src/main/java/com/jayson/utils/BitInputStream.java
+src/main/java/com/jayson/utils/ThreadPool.java
+src/main/res/
