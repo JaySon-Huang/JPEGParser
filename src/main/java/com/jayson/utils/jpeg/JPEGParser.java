@@ -16,7 +16,9 @@ import java.util.Set;
 import static com.jayson.utils.jpeg.b2i.i16;
 
 /**
- * Created by JaySon on 14-8-3.
+ * Package : com.jayson.utils.jpeg
+ * Author  : JaySon
+ * Date    : 14-8-3
  */
 public class JPEGParser implements Closeable{
 
@@ -347,11 +349,12 @@ public class JPEGParser implements Closeable{
                 for (int i = 0; i != layer.mHSamp*layer.mVSamp; ++i){
 //                    System.out.print(mImg.getColors()[color - 1] + ":");
                     // 更新DC基值
-                    int dc_new = 0;
+                    Integer dc_val = dc_base.get(color_id);
                     try {
-                        dc_new = scanColor(bis, layer, dc_base.getOrDefault(color_id, 0));
+                        if (dc_val == null){dc_val = 0;}
+                        dc_val = scanColor(bis, layer, dc_val);
                         // 更新base值
-                        dc_base.put(color_id, dc_new);
+                        dc_base.put(color_id, dc_val);
                     } catch (MarkAppearException e){
                         // EOI标志
                         if (e.mark == 0xd9){
@@ -509,7 +512,7 @@ public class JPEGParser implements Closeable{
                 for (int i = 0; i != historgrams.length; ++i) {
                     historgrams[i] = new Historgram();
                 }
-                for (int[] dataUnit : img.getDataUnits()) {
+                for (int[] dataUnit : img.getDataUnits().allUnits()) {
 //                System.out.println("[");
                     for (int i = 0; i != 8; ++i) {
                         for (int j = 0; j != 8; ++j) {
@@ -525,7 +528,7 @@ public class JPEGParser implements Closeable{
                     System.out.print(String.format("%3d:", i));
                     historgrams[i].print(System.out);
                 }
-                System.out.println("total:" + img.getDataUnits().size() + " units");
+                System.out.println("total:" + img.getDataUnits().numOfUnits() + " units");
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();

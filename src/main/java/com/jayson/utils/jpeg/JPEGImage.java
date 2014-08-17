@@ -7,7 +7,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Created by JaySon on 14-8-9.
+ * Package : com.jayson.utils.jpeg
+ * Author  : JaySon
+ * Date    : 14-8-9
  */
 public class JPEGImage {
 
@@ -59,7 +61,7 @@ public class JPEGImage {
     /**
      * 量化后每一个单元信息
      */
-    private List<int[]> mDataUnits;
+    private JPEGDataUnits mDataUnits;
 
 
     public JPEGImage(){
@@ -67,7 +69,7 @@ public class JPEGImage {
         mDQT = new JPEGDQT[4];
         mHuffmanDC = new JPEGHuffman[2];
         mHuffmanAC = new JPEGHuffman[2];
-        mDataUnits = new ArrayList<int[]>();
+        mDataUnits = new JPEGDataUnits();
     }
 
     /**
@@ -201,11 +203,16 @@ public class JPEGImage {
     }
 
     public void addDataUnit(int[] unit){
-
         mDataUnits.add(unit);
     }
 
-    public List<int[]> getDataUnits(){
+    public void setDataUnits(JPEGDataUnits newData){
+        mDataUnits.clear();
+        mDataUnits = null;
+        mDataUnits = newData;
+    }
+
+    public JPEGDataUnits getDataUnits(){
         return mDataUnits;
     }
 
