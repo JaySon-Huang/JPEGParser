@@ -21,6 +21,14 @@ public class JPEGDataUnits {
         mUnits.add(unit);
     }
 
+    public int get(int unit_no, int position){
+        return mUnits.get(unit_no)[position];
+    }
+
+    public void put(int unit_no, int position, int val){
+        mUnits.get(unit_no)[position] = val;
+    }
+
     public int[] getUnit(int loc){
         return mUnits.get(loc);
     }
