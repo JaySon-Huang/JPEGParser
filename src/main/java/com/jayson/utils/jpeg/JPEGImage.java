@@ -1,7 +1,9 @@
 package com.jayson.utils.jpeg;
 
+import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -16,6 +18,20 @@ import java.util.Set;
  * Date    : 14-8-9
  */
 public class JPEGImage {
+
+
+    /**
+     * start of image
+     */
+    public static final int SOI = 0xFFD8;
+    public static final int DQT = 0xFFDB;
+    public static final int DHT = 0xFFC4;
+    public static final int SOF0 = 0xFFC0;
+
+    public static final String[] COLORS_GREY = new String[]{"L"};
+    public static final String[] COLORS_YCrCb = new String[]{" Y", "Cr", "Cb"};
+    public static final String[] COLORS_CMYK = new String[]{"C", "M", "Y", "K"};
+
 
     /**
      * 文件的存储路径
@@ -35,7 +51,7 @@ public class JPEGImage {
     /**
      * App 信息
      */
-    private Map<String, byte[]> mApp;
+    private Map<Integer, byte[]> mApp;
 
     /**
      * 量化表
@@ -71,10 +87,11 @@ public class JPEGImage {
      * 量化后每一个单元信息
      */
     private JPEGDataUnits mDataUnits;
+    private int mPrecision;
 
 
     public JPEGImage(String filepath){
-        mApp = new HashMap<String, byte[]>();
+        mApp = new HashMap<Integer, byte[]>();
         mDQT = new JPEGDQT[4];
         mHuffmanDC = new JPEGHuffman[2];
         mHuffmanAC = new JPEGHuffman[2];
@@ -86,10 +103,12 @@ public class JPEGImage {
      * 设置图像高宽
      * @param width     宽度
      * @param height    高度
+     * @param precision
      */
-    public void setSize(int width, int height){
+    public void setSize(int width, int height, int precision){
         mWidth = width;
         mHeight = height;
+        mPrecision = precision;
     }
 
     /**
@@ -111,8 +130,8 @@ public class JPEGImage {
      */
     public int size(){  return mHeight*mWidth; }
 
-    public void setAppInfo(String app, byte[] bytes){
-        mApp.put(app, bytes);
+    public void setAppInfo(int marker, byte[] bytes){
+        mApp.put(marker, bytes);
     }
 
     /**
@@ -239,25 +258,64 @@ public class JPEGImage {
         return mFilePath;
     }
 
-    public void save(String savePath) {
-        FileInputStream fin = null;
+    public void save(String savePath) throws IOException {
+        DataOutputStream fsave = null;
         try {
-            fin = new FileInputStream(mFilePath);
-            byte[] buf = new byte[2];
-            fin.read(buf);
+            fsave = new DataOutputStream(new FileOutputStream(savePath));
+            // 写入SOI
 
-        }catch (FileNotFoundException e){
-            e.printStackTrace();
-        } catch (IOException e) {
+            fsave.writeShort(JPEGImage.SOI);
+            // 写入APPn
+            for ( Map.Entry<Integer, byte[]> appinfo : mApp.entrySet() ){
+                fsave.writeShort(appinfo.getKey());
+                fsave.write(appinfo.getValue());
+            }
+            // 写入DQT
+            JPEGDQT.saveDQTs(fsave, mDQT);
+
+            // 写入DHT
+            for (JPEGHuffman h : mHuffmanDC){
+                h.save(fsave);
+            }
+            for (JPEGHuffman h : mHuffmanAC){
+                h.save(fsave);
+            }
+
+            // 写入SOF0
+            this.saveSOF0(fsave);
+
+            // 写入SOS && 图像数据
+            this.saveSOS(fsave);
+
+        } catch (FileNotFoundException e) {
             e.printStackTrace();
         } finally {
-            if (fin != null) {
+            if (fsave != null) {
                 try {
-                    fin.close();
+                    fsave.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
+        }
+    }
+
+    private void saveSOS(DataOutputStream out) {
+
+    }
+
+    private void saveSOF0(DataOutputStream out) throws IOException {
+        out.write(JPEGImage.SOF0);
+        int len = 2+1+2+2+1+3*mColors.length;
+        out.writeShort(len);// 段长度
+        out.write(mPrecision);// 图像精度
+        out.writeShort(mHeight);out.writeShort(mWidth);// 图像高、宽
+        out.write(mColors.length);// 颜色空间
+        for (Map.Entry<Integer, JPEGLayer> entry : mLayers.entrySet()){
+            JPEGLayer layer = entry.getValue();
+            out.write(layer.mColorID);
+            out.write(layer.mHSamp<<4 | layer.mVSamp);
+            out.write(layer.mDQTID);
         }
     }
 

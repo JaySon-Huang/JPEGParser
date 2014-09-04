@@ -1,10 +1,15 @@
 package com.jayson.utils.jpeg;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by JaySon on 14-8-4.
+ * Package : com.jayson.utils.jpeg
+ * Author  : JaySon
+ * Date    : 14-8-4
  */
 public class JPEGHuffman {
 
@@ -77,5 +82,29 @@ public class JPEGHuffman {
 
     public Integer find(String key){
         return mPairs.get(key);
+    }
+
+    public void save(DataOutputStream out) throws IOException {
+        out.writeShort(JPEGImage.DHT);// DHT标志
+        int len = 16+mPairs.size();
+        byte[] bytes = new byte[len];
+        out.writeShort(2 + len);// 写入段长度
+        out.write( mType<<4 | mID );// 写入Huffman树类型、ID。
+        ArrayList< ArrayList<Integer> > data = new ArrayList< ArrayList<Integer> >(16);
+        for (int i = 0; i != 16; ++i){
+            data.add(new ArrayList<Integer>());
+        }
+        for (Map.Entry<String, Integer> entry : mPairs.entrySet()){
+            data.get( entry.getKey().length()-1 ).add( entry.getValue() );
+        }
+        int valIndex = 17;
+        for (int i = 0; i != 17; ++i){
+            bytes[i] = (byte) data.get(i).size();
+            for (int j = 0; j != data.get(i).size(); ++j) {
+                bytes[valIndex] = data.get(i).get(j).byteValue();
+            }
+        }
+        // 写入哈夫曼数据
+        out.write(bytes);
     }
 }

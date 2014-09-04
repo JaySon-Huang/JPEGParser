@@ -23,14 +23,7 @@ import static com.jayson.utils.jpeg.b2i.i16;
 public class JPEGParser implements Closeable{
 
 
-    /**
-     * start of image
-     */
-    public static final int SOI = 0xFFD8;
 
-    public static final String[] COLORS_GREY = new String[]{"L"};
-    public static final String[] COLORS_YCrCb = new String[]{" Y", "Cr", "Cb"};
-    public static final String[] COLORS_CMYK = new String[]{"C", "M", "Y", "K"};
 
     private FileInputStream mIs;
     private String mFilePath;
@@ -42,10 +35,10 @@ public class JPEGParser implements Closeable{
         byte[] bytes = new byte[2];
         try {
             mIs.read(bytes);
-            if(i16(bytes) != SOI){
+            if(i16(bytes) != JPEGImage.SOI){
+                this.close();
                 throw new InvalidJpegFormatException();
             }
-//            mIs.read(bytes);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -149,7 +142,7 @@ public class JPEGParser implements Closeable{
                 mIs.read(bytes);
 
                 String app = String.format("APP%d", (marker&0xF));
-                mImg.setAppInfo(app, bytes);
+                mImg.setAppInfo(marker, bytes);
                 if (marker == 0xFFE0 && cmpByte2Str(bytes,0,"JFIF\0")){
 
                     // JFIF版本号
@@ -222,7 +215,7 @@ public class JPEGParser implements Closeable{
 
                 // 一个DQT块可能定义几个量化表
                 int[] scan_index = new int[]{0};
-                while (scan_index[0] < num){
+                while (scan_index[0] < num) {
                     JPEGDQT dqt = new JPEGDQT(bytes, scan_index);
                     mImg.setDQT(dqt);
                 }
@@ -245,17 +238,17 @@ public class JPEGParser implements Closeable{
                 }
                 int height = i16(bytes, 1);
                 int width = i16(bytes, 3);
-                mImg.setSize(width, height);
+                mImg.setSize(width, height, precision);
                 switch (bytes[5])
                 {
                     case 1:
-                        mImg.setColors(COLORS_GREY);
+                        mImg.setColors(JPEGImage.COLORS_GREY);
                         break;
                     case 3:
-                        mImg.setColors(COLORS_YCrCb);
+                        mImg.setColors(JPEGImage.COLORS_YCrCb);
                         break;
                     case 4:
-                        mImg.setColors(COLORS_CMYK);
+                        mImg.setColors(JPEGImage.COLORS_CMYK);
                         break;
                     default:
                         throw new InvalidJpegFormatException();
@@ -263,8 +256,8 @@ public class JPEGParser implements Closeable{
                 for(int i=6;i!=bytes.length;i+=3){
                     // 颜色分量id，水平采样因子，垂直采样因子，使用的量化表id
                     int color_id = bytes[i];
-                    int v_samp = bytes[i+1] >>> 4;
-                    int h_samp = bytes[i+1] & 0x0f;
+                    int h_samp = bytes[i+1] >>> 4;
+                    int v_samp = bytes[i+1] & 0x0f;
                     int DQT_id = bytes[i+2];
                     mImg.setLayer(new JPEGImage.JPEGLayer(color_id, v_samp, h_samp, DQT_id));
                 }

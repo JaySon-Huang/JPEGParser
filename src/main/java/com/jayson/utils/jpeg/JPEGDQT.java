@@ -1,9 +1,15 @@
 package com.jayson.utils.jpeg;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+
 import static com.jayson.utils.jpeg.b2i.i16;
 
 /**
- * Created by JaySon on 14-8-4.
+ * Package : com.jayson.utils.jpeg
+ * Author  : JaySon
+ * Date    : 14-8-4
  */
 public class JPEGDQT {
     public final static int PRECISION_16 = 1;
@@ -46,5 +52,25 @@ public class JPEGDQT {
 
     public int getPrecision(){
         return mPrecision;
+    }
+
+    /**
+     * 把四个量化表存储为一个block，输出到out中
+     * @param out       输出
+     * @param tables    四个量化表
+     */
+    public static void saveDQTs (DataOutputStream out, JPEGDQT[] tables) throws IOException {
+        assert (tables.length == 4);
+
+        out.writeShort(JPEGImage.DQT);
+        out.writeShort(2+260);// 四个块精度都为 PRECISION_8
+        for (int i = 0; i != 4; ++i){
+            assert (tables[i].mPrecision == PRECISION_8);
+            byte b = (byte) (i&0xf);
+            out.write(b);
+            for (int j = 0; j != 64; ++j){
+                out.write(tables[i].mTable[j]);
+            }
+        }
     }
 }
