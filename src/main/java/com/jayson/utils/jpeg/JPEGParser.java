@@ -33,21 +33,22 @@ public class JPEGParser implements Closeable{
     public static final String[] COLORS_CMYK = new String[]{"C", "M", "Y", "K"};
 
     private FileInputStream mIs;
+    private String mFilePath;
 
     public JPEGParser(String filename) throws IOException, InvalidJpegFormatException {
+        mFilePath = filename;
 
         mIs = new FileInputStream(filename);
         byte[] bytes = new byte[2];
         try {
             mIs.read(bytes);
+            if(i16(bytes) != SOI){
+                throw new InvalidJpegFormatException();
+            }
+//            mIs.read(bytes);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        if(i16(bytes) != SOI){
-            throw new InvalidJpegFormatException();
-        }
-        mIs.read(bytes);
-
     }
 
     @Override
@@ -64,7 +65,7 @@ public class JPEGParser implements Closeable{
      * @throws InvalidJpegFormatException
      */
     public JPEGImage parse() throws InvalidJpegFormatException {
-        JPEGImage imgObject = new JPEGImage();
+        JPEGImage imgObject = new JPEGImage(mFilePath);
         byte[] bytes = new byte[2];
         BlockParser parser = new BlockParser(imgObject);
         try {
@@ -73,7 +74,7 @@ public class JPEGParser implements Closeable{
                 int marker = i16(bytes);
                 JPEGMarkInfo info = JPEGMarker.getMarkInfo(marker);
                 if(info == null){
-                    System.err.println("null info!");
+                    System.err.println("Cannot get mark info!");
                     continue;
                 }
 
@@ -122,16 +123,7 @@ public class JPEGParser implements Closeable{
         private JPEGImage mImg;
 
         public BlockParser(JPEGImage imgObject) {
-            try {
-                mImg = imgObject;
-                byte[] bytes = new byte[2];
-                mIs.read(bytes);
-                int num = i16(bytes)-2;
-                bytes = new byte[num];
-                mIs.read(bytes);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            mImg = imgObject;
         }
 
         void parseSkip(int marker){

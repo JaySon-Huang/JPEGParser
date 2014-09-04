@@ -1,5 +1,9 @@
 package com.jayson.utils.jpeg;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +16,11 @@ import java.util.Set;
  * Date    : 14-8-9
  */
 public class JPEGImage {
+
+    /**
+     * 文件的存储路径
+     */
+    private String mFilePath;
 
     /**
      * JFIF 信息
@@ -64,12 +73,13 @@ public class JPEGImage {
     private JPEGDataUnits mDataUnits;
 
 
-    public JPEGImage(){
+    public JPEGImage(String filepath){
         mApp = new HashMap<String, byte[]>();
         mDQT = new JPEGDQT[4];
         mHuffmanDC = new JPEGHuffman[2];
         mHuffmanAC = new JPEGHuffman[2];
         mDataUnits = new JPEGDataUnits();
+        mFilePath = filepath;
     }
 
     /**
@@ -223,6 +233,32 @@ public class JPEGImage {
         mThumbnail.width = thumbnail_horizontal_pixels;
         mThumbnail.height = thumbnail_vertical_pixels;
         mThumbnail.rgb = thumbnail_rgb_bitmap;
+    }
+
+    public String getFilePath() {
+        return mFilePath;
+    }
+
+    public void save(String savePath) {
+        FileInputStream fin = null;
+        try {
+            fin = new FileInputStream(mFilePath);
+            byte[] buf = new byte[2];
+            fin.read(buf);
+
+        }catch (FileNotFoundException e){
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fin != null) {
+                try {
+                    fin.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     /**

@@ -4,21 +4,14 @@ import java.io.PrintStream;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.PriorityQueue;
-import java.util.Set;
 
 /**
- * Created by JaySon on 14-8-9.
+ * Package : com.jayson.utils
+ * Author  : JaySon
+ * Date    : 14-8-9
  */
 public class Historgram implements Cloneable{
-
-    private final Comparator<Map.Entry<Integer, Integer>> cmp = new Comparator<Map.Entry<Integer, Integer>>() {
-        @Override
-        public int compare(Map.Entry<Integer, Integer> lhs, Map.Entry<Integer, Integer> rhs) {
-            return rhs.getValue() - lhs.getValue();
-        }
-    };
 
     Map<Integer, Integer> mHistorgram;
 
@@ -35,7 +28,6 @@ public class Historgram implements Cloneable{
     }
 
     public void subN(int n){
-        assert mHistorgram.containsKey(n);
         mHistorgram.put(n, mHistorgram.get(n)-1);
     }
 
@@ -51,12 +43,38 @@ public class Historgram implements Cloneable{
         }
     }
 
+    int[] mRange;
+    /**
+     * @return 得到当前直方图的左右边界.[0]为下界,[1]为上界
+     */
+    public int[] getRange(){
+        if (mRange != null){
+            return mRange;
+        }
+        mRange = new int[2];
+        boolean isFirst = true;
+        for (Map.Entry<Integer, Integer> entry : mHistorgram.entrySet()) {
+            if (isFirst) {
+                isFirst = false;
+                mRange[0] = mRange[1] = entry.getKey();
+            } else {
+                mRange[0] = mRange[0] < entry.getKey() ?
+                        mRange[0] :
+                        entry.getKey();
+                mRange[1] = mRange[1] > entry.getKey() ?
+                        mRange[1] :
+                        entry.getKey();
+            }
+        }
+        return mRange;
+    }
+
     /**
      * 对直方图进行平移,空出左基准-1,右基准+1,留出存储额外信息的空间
      * @param left  左基准
      * @param right 右基准
      */
-    public void  shift(int left, int right){
+    public void shift(int left, int right){
         // FIXME: 实现之
         int[] z = findZ(left, right);
         System.out.println(String.format("z1, z2:%3d, %3d", z[0], z[1]));
@@ -115,6 +133,16 @@ public class Historgram implements Cloneable{
         mHistorgram.clear();
     }
 
+    public void print(){
+        this.print(System.out);
+    }
+
+    private final Comparator<Map.Entry<Integer, Integer>> cmp = new Comparator<Map.Entry<Integer, Integer>>() {
+        @Override
+        public int compare(Map.Entry<Integer, Integer> lhs, Map.Entry<Integer, Integer> rhs) {
+            return rhs.getValue() - lhs.getValue();
+        }
+    };
     public void print(PrintStream ps){
         ps.print('{');
         PriorityQueue< Map.Entry<Integer, Integer> > q
@@ -143,6 +171,30 @@ public class Historgram implements Cloneable{
         }
         ps.println('}');
         ps.println(String.format("[ %d , %d]", min_key, max_key));
+
     }
 
+
+    public static void main(String[] args){
+        Historgram historgram = new Historgram();
+        historgram.setN(-6, 8);
+        historgram.setN(-5, 8);
+        historgram.setN(-3, 16);
+        historgram.setN(-2, 32);
+        historgram.setN(-1, 512+64);
+        historgram.setN(0, 1024);
+        historgram.setN(1, 512+128);
+        historgram.setN(2, 64);
+        historgram.setN(3, 32);
+        historgram.setN(4, 16);
+        historgram.setN(5, 16+8);
+        historgram.setN(6, 16);
+        historgram.setN(8, 8);
+        historgram.setN(9, 8);
+
+        historgram.print();
+        historgram.shift(0,1);
+        historgram.print();
+
+    }
 }
