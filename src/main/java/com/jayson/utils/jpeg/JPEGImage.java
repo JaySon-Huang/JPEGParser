@@ -26,7 +26,8 @@ public class JPEGImage {
     public static final int SOI = 0xFFD8;
     public static final int DQT = 0xFFDB;
     public static final int DHT = 0xFFC4;
-    public static final int SOF0 = 0xFFC0;
+    public static final int SOF = 0xFFC0;
+    public static final int SOS = 0xFFDA;
 
     public static final String[] COLORS_GREY = new String[]{"L"};
     public static final String[] COLORS_YCrCb = new String[]{" Y", "Cr", "Cb"};
@@ -268,6 +269,7 @@ public class JPEGImage {
             // 写入APPn
             for ( Map.Entry<Integer, byte[]> appinfo : mApp.entrySet() ){
                 fsave.writeShort(appinfo.getKey());
+                fsave.writeShort(appinfo.getValue().length+2);
                 fsave.write(appinfo.getValue());
             }
             // 写入DQT
@@ -284,8 +286,11 @@ public class JPEGImage {
             // 写入SOF0
             this.saveSOF0(fsave);
 
-            // 写入SOS && 图像数据
+            // 写入SOS
             this.saveSOS(fsave);
+
+            // 写入图像数据
+            this.saveData(fsave);
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -300,12 +305,27 @@ public class JPEGImage {
         }
     }
 
-    private void saveSOS(DataOutputStream out) {
+    private void saveData(DataOutputStream out) {
+        for (int[] dataUnit : mDataUnits.allUnits()){
+            System.out.println("DC:"+dataUnit[0]);
+        }
+    }
 
+    private void saveSOS(DataOutputStream out) throws IOException {
+        out.writeShort(JPEGImage.SOS);
+        int len = 2+1+mColors.length*2+3;
+        out.writeShort(len);
+        out.write(mColors.length);
+        for (Map.Entry<Integer, JPEGLayer> entry : mLayers.entrySet()) {
+            JPEGLayer layer = entry.getValue();
+            out.write(layer.mColorID);
+            out.write(layer.mDCHuffmanID<<4 | layer.mACHuffmanID);
+        }
+        out.write(new byte[]{0x00, 0x3f, 0x00});
     }
 
     private void saveSOF0(DataOutputStream out) throws IOException {
-        out.write(JPEGImage.SOF0);
+        out.writeShort(JPEGImage.SOF);
         int len = 2+1+2+2+1+3*mColors.length;
         out.writeShort(len);// 段长度
         out.write(mPrecision);// 图像精度

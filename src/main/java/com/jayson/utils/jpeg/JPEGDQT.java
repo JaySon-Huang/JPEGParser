@@ -64,11 +64,11 @@ public class JPEGDQT {
 
         out.writeShort(JPEGImage.DQT);
         out.writeShort(2+260);// 四个块精度都为 PRECISION_8
-        for (int i = 0; i != 4; ++i){
+        for (int i = 0; i != 2; ++i){
             assert (tables[i].mPrecision == PRECISION_8);
             byte b = (byte) (i&0xf);
             out.write(b);
-            for (int j = 0; j != 64; ++j){
+            for (int j = 0; j != 64; ++j) {
                 out.write(tables[i].mTable[j]);
             }
         }
