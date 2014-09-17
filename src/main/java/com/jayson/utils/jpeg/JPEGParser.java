@@ -334,12 +334,15 @@ public class JPEGParser implements Closeable{
                 for (int i = 0; i != layer.mHSamp*layer.mVSamp; ++i){
 //                    System.out.print(mImg.getColors()[color - 1] + ":");
                     // 更新DC基值
+                    int[] unit = new int[64];
                     Integer dc_val = dc_base.get(color_id);
                     try {
                         if (dc_val == null){dc_val = 0;}
-                        dc_val = scanColor(bis, layer, dc_val);
+                        dc_val = scanColor(bis, layer, dc_val, unit);
                         // 更新base值
                         dc_base.put(color_id, dc_val);
+                        // 插入数据
+                        mImg.addDataUnit(color_id, unit);
                     } catch (MarkAppearException e){
                         // EOI标志
                         if (e.mark == 0xd9){
@@ -353,11 +356,11 @@ public class JPEGParser implements Closeable{
             }
         }
 
-        private int scanColor(JPEGBitInputStream bis, JPEGImage.JPEGLayer layer, int dc_base) throws MarkAppearException, IOException {
+        private int scanColor(JPEGBitInputStream bis, JPEGImage.JPEGLayer layer, int dc_base, int[] unit) throws MarkAppearException, IOException {
             JPEGHuffman huffman;
             StringBuffer buf = new StringBuffer();
             Integer weight;
-            int[] unit = new int[64];
+//            int[] unit = new int[64];
             // 找到直流分量对应的权值，权值表示读取DC diff值需要读入多少bit
             do {
                 buf.append(bis.readBit());
@@ -407,7 +410,7 @@ public class JPEGParser implements Closeable{
 //                System.out.print(String.format(", 0x%02x:(%2d, %2d)",
 //                        weight, pre_zeros, ac_val));
             }
-            mImg.addDataUnit(unit);
+//            mImg.addDataUnit(unit);
 //            System.out.println(" END");
             return dc_val;
         }
@@ -497,23 +500,24 @@ public class JPEGParser implements Closeable{
                 for (int i = 0; i != historgrams.length; ++i) {
                     historgrams[i] = new Historgram();
                 }
-                for (int[] dataUnit : img.getDataUnits().allUnits()) {
-//                System.out.println("[");
-                    for (int i = 0; i != 8; ++i) {
-                        for (int j = 0; j != 8; ++j) {
-                            historgrams[i * 8 + j].addN(dataUnit[i * 8 + j]);
-//                        System.out.print(String.format("%3d ,", dataUnit[i*8+j]));
+                for (Integer colorid : img.getColorIDs()) {
+                    for (int[] dataUnit : img.getDataUnits().getColorUnit(colorid)) {
+//                        System.out.println("[");
+                        for (int i = 0; i != 8; ++i) {
+                            for (int j = 0; j != 8; ++j) {
+                                historgrams[i * 8 + j].addN(dataUnit[i * 8 + j]);
+//                                System.out.print(String.format("%3d ,", dataUnit[i*8+j]));
+                            }
+//                            System.out.println();
                         }
-//                    System.out.println();
+//                        System.out.println("]");
                     }
-//                System.out.println("]");
                 }
 
                 for (int i = 0; i != 64; ++i) {
                     System.out.print(String.format("%3d:", i));
-                    historgrams[i].print(System.out);
+                    historgrams[i].print();
                 }
-                System.out.println("total:" + img.getDataUnits().numOfUnits() + " units");
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();

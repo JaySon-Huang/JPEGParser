@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Package : com.jayson.utils.jpeg
@@ -104,7 +105,7 @@ public class JPEGImage {
      * 设置图像高宽
      * @param width     宽度
      * @param height    高度
-     * @param precision
+     * @param precision 精度
      */
     public void setSize(int width, int height, int precision){
         mWidth = width;
@@ -149,7 +150,7 @@ public class JPEGImage {
      */
     public void setColors(String[] colors){
         mColors = colors;
-        mLayers = new HashMap<Integer, JPEGLayer>();
+        mLayers = new TreeMap<Integer, JPEGLayer>();
     }
 
     /**
@@ -232,8 +233,8 @@ public class JPEGImage {
         JFIF_destiny_y = jfif_destiny_y;
     }
 
-    public void addDataUnit(int[] unit){
-        mDataUnits.add(unit);
+    public void addDataUnit(int colorid, int[] unit){
+        mDataUnits.add(colorid, unit);
     }
 
     public void setDataUnits(JPEGDataUnits newData){
@@ -306,8 +307,10 @@ public class JPEGImage {
     }
 
     private void saveData(DataOutputStream out) {
-        for (int[] dataUnit : mDataUnits.allUnits()){
-            System.out.println("DC:"+dataUnit[0]);
+        for (Integer colorid : mLayers.keySet()) {
+            for (int[] dataUnit : mDataUnits.getColorUnit(colorid)) {
+                System.out.println("DC:" + dataUnit[0]);
+            }
         }
     }
 
