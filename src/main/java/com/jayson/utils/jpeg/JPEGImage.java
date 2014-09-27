@@ -401,6 +401,9 @@ public class JPEGImage {
     }
 
     private String convert(int num){
+        if (num == 0){
+            return "";
+        }
         int bit_of_num = 0;
         int tmp = Math.abs(num);
         while( tmp != 0){
