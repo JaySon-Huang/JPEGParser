@@ -3,7 +3,7 @@ package com.jayson.utils.jpeg;
 import java.util.HashMap;
 
 /**
- * Package : ${PACKAGE_NAME}
+ * Package : com.jayson.utils.jpeg
  * Author  : JaySon
  * Date    : 14-8-3
  */
@@ -23,7 +23,7 @@ public class JPEGMarker extends HashMap<Integer, JPEGMarkInfo> {
         mInfos.put(0xffc6, new JPEGMarkInfo("SOF6", "Differential progressive DCT", JPEGMarkInfo.TYPE_UNSUPPORTED));
         mInfos.put(0xffc7, new JPEGMarkInfo("SOF7", "Differential spatial", JPEGMarkInfo.TYPE_UNSUPPORTED));
 
-        mInfos.put(0xffc9, new JPEGMarkInfo("SOF9", "Extended sequential DCT (AC)", JPEGMarkInfo.TYPE_UNSUPPORTED));
+        mInfos.put(0xffc9, new JPEGMarkInfo("SOF9",  "Extended sequential DCT (AC)", JPEGMarkInfo.TYPE_UNSUPPORTED));
         mInfos.put(0xffca, new JPEGMarkInfo("SOF10", "Progressive DCT (AC)", JPEGMarkInfo.TYPE_UNSUPPORTED));
         mInfos.put(0xffcb, new JPEGMarkInfo("SOF11", "Spatial lossless DCT (AC)", JPEGMarkInfo.TYPE_UNSUPPORTED));
 

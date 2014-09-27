@@ -259,7 +259,7 @@ public class JPEGImage {
         return mFilePath;
     }
 
-    public void save(String savePath) throws IOException {
+    public void save(String savePath) throws IOException, JPEGParser.InvalidJpegFormatException {
         DataOutputStream fsave = null;
         try {
             fsave = new DataOutputStream(new FileOutputStream(savePath));
@@ -309,7 +309,7 @@ public class JPEGImage {
     }
 
     private void saveData(DataOutputStream out) throws IOException {
-        JPEGBitOutputStream bout = new JPEGBitOutputStream(out, 100);
+        JPEGBitOutputStream bout = new JPEGBitOutputStream(out);
         // Y,Cr,Cb 待写入的下一个color单元索引值
         Map<Integer, Integer> indexs = new TreeMap<Integer, Integer>();
         // 前一个单元的DC值
@@ -338,7 +338,9 @@ public class JPEGImage {
                 int[] dataUnit = mDataUnits.getColorUnit(colorid).get(ind_of_color);
                 indexs.put(colorid, ind_of_color+1);
 
-//                System.out.println("DC:" + dataUnit[0]);
+                if (JPEGParser.verbose > 2) {
+                    System.out.println("DC:" + dataUnit[0]);
+                }
                 int dc_diff = dataUnit[0] - pre_dcs.get(colorid);
                 pre_dcs.put(colorid, dataUnit[0]);
 
@@ -346,12 +348,9 @@ public class JPEGImage {
                 String bits_to_write = convert(dc_diff);
                 JPEGHuffman huffman = getHuffman(JPEGHuffman.TYPE_DC, layer.mDCHuffmanID);
                 String h_key = huffman.findKey(bits_to_write.length());
-                if (h_key != null){
-                    bout.putBitString(h_key);
-                    bout.putBitString(bits_to_write);
-                }else{
-                    System.err.println("Error in finding DC huffman key of "+bits_to_write.length()+"!");
-                }
+                // 写入
+                bout.putBitString(h_key);
+                bout.putBitString(bits_to_write);
 
 
                 // 写入 ac
@@ -369,20 +368,22 @@ public class JPEGImage {
                         }
                         weight_to_write = zero_cnt<<4;
                         bits_to_write = convert(dataUnit[j]);
-//                        System.out.println(dataUnit[j]+" -> "+bits_to_write);
+                        if (JPEGParser.verbose > 2) {
+                            System.out.println(dataUnit[j] + " -> " + bits_to_write);
+                        }
                         weight_to_write |= bits_to_write.length();
                         h_key = huffman.findKey(weight_to_write);
                         if (h_key != null){
                             bout.putBitString(h_key);
                             bout.putBitString(bits_to_write);
                         }else{
+                            // TODO: 只为DEBUG存在
                             System.err.println("Error in finding AC huffman key of "+ weight_to_write +"!");
                             System.err.print("Block:");
                             for (int index=0;index!=64;++index){
                                 if (index%8==0) System.err.println();
                                 System.out.print(String.format("%3d,",dataUnit[index]));
                             }System.out.println();
-                            // TODO: 只为DEBUG存在
                             throw new IOException();
                         }
                         zero_cnt = 0;
@@ -396,7 +397,9 @@ public class JPEGImage {
                 }
             }
         }
-//        System.out.println("One Unit end~");
+        if (JPEGParser.verbose > 2) {
+            System.out.println("One Unit end~");
+        }
         return ret;
     }
 

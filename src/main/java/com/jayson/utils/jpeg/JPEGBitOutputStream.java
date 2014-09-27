@@ -66,7 +66,6 @@ public class JPEGBitOutputStream {
                 }
             }
             if (lastByte == (byte)0xff){
-                //mByteBuf[mBytePos++] = 0x00;
                 this.putByte( (byte) 0x00 );
             }
         }

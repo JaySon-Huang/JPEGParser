@@ -104,7 +104,9 @@ public class JPEGBitInputStream {
     }
 
     public int readBits(int nBit) throws IOException, JPEGParser.MarkAppearException {
-        assert (1 <= nBit && nBit <= 32);
+        if ( nBit < 1 || nBit > 32 ){
+            throw new IOException("试图读取非法的bits数 : "+nBit);
+        }
         int retVal=0;
         for (int i=0;i!=nBit;++i){
             retVal <<= 1;
@@ -115,7 +117,6 @@ public class JPEGBitInputStream {
 
     public String readBitsString(int nBit) throws IOException, JPEGParser.MarkAppearException {
         if (nBit == 0){
-//            System.out.print("codec length 0!");
             return "";
         }
         StringBuffer sb = new StringBuffer(Integer.toBinaryString(readBits(nBit)));

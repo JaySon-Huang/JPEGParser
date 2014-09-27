@@ -23,7 +23,7 @@ import static com.jayson.utils.jpeg.b2i.i16;
  */
 public class JPEGParser implements Closeable{
 
-
+    public final static int verbose = 1;
 
 
     private FileInputStream mIs;
@@ -58,57 +58,53 @@ public class JPEGParser implements Closeable{
      * @return  返回解析后的jpeg格式图像对象(量化后,进行哈夫曼编码前)
      * @throws InvalidJpegFormatException
      */
-    public JPEGImage parse() throws InvalidJpegFormatException {
+    public JPEGImage parse() throws InvalidJpegFormatException, IOException {
         JPEGImage imgObject = new JPEGImage(mFilePath);
         byte[] bytes = new byte[2];
         BlockParser parser = new BlockParser(imgObject);
-        try {
-            while (true) {
-                mIs.read(bytes);
-                int marker = i16(bytes);
-                JPEGMarkInfo info = JPEGMarker.getMarkInfo(marker);
-                if(info == null){
-                    System.err.println("Cannot get mark info!");
-                    continue;
-                }
-
-                System.out.println("block:"+info.mName+" "+info.mDescription);
-                switch (info.mType)
-                {
-                    case JPEGMarkInfo.TYPE_APP:
-                        parser.parseApp(marker);
-                        break;
-                    case JPEGMarkInfo.TYPE_DQT:
-                        parser.parseDQT(marker);
-                        break;
-                    case JPEGMarkInfo.TYPE_SOF:
-                        parser.parseSOF(marker);
-                        break;
-                    case JPEGMarkInfo.TYPE_DHT:
-                        parser.parseDHT(marker);
-                        break;
-                    case JPEGMarkInfo.TYPE_DRI:
-                        System.err.println("DRI happen!");
-                        parser.parseDRI(marker);
-                        break;
-                    case JPEGMarkInfo.TYPE_SKIP:
-                        parser.parseSkip(marker);
-                        break;
-                    case JPEGMarkInfo.TYPE_SOS:
-                        parser.parseSOS(marker);
-                        parser.startScan();
-                        close();
-                        return imgObject;
-
-                    default:
-                        System.err.print("unhandled mark:" + marker);
-                        break;
-                }
-
+        while (true) {
+            mIs.read(bytes);
+            int marker = i16(bytes);
+            JPEGMarkInfo info = JPEGMarker.getMarkInfo(marker);
+            if(info == null){
+                System.err.println("Cannot get mark info!");
+                throw new InvalidJpegFormatException(String.format("Invalid block.mark:%4X", marker));
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
+            if (verbose > 0) {
+                System.out.println("block:" + info.mName + " " + info.mDescription);
+            }
+            switch (info.mType)
+            {
+                case JPEGMarkInfo.TYPE_APP:
+                    parser.parseApp(marker);
+                    break;
+                case JPEGMarkInfo.TYPE_DQT:
+                    parser.parseDQT(marker);
+                    break;
+                case JPEGMarkInfo.TYPE_SOF:
+                    parser.parseSOF(marker);
+                    break;
+                case JPEGMarkInfo.TYPE_DHT:
+                    parser.parseDHT(marker);
+                    break;
+                case JPEGMarkInfo.TYPE_DRI:
+                    System.err.println("DRI happen!");
+                    parser.parseDRI(marker);
+                    break;
+                case JPEGMarkInfo.TYPE_SKIP:
+                    parser.parseSkip(marker);
+                    break;
+                case JPEGMarkInfo.TYPE_SOS:
+                    parser.parseSOS(marker);
+                    parser.startScan();
+                    close();
+                    return imgObject;
+
+                default:
+                    System.err.print("unhandled mark:" + marker);
+                    break;
+            }
+
         }
     }
 
@@ -120,70 +116,63 @@ public class JPEGParser implements Closeable{
             mImg = imgObject;
         }
 
-        void parseSkip(int marker){
-            try {
-                byte[] bytes = new byte[2];
-                mIs.read(bytes);
-                int num = i16(bytes)-2;
-                bytes = new byte[num];
-                mIs.read(bytes);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
+        void parseSkip(int marker) throws IOException {
+            byte[] bytes = new byte[2];
+            mIs.read(bytes);
+            int num = i16(bytes)-2;
+            bytes = new byte[num];
+            mIs.read(bytes);
         }
 
-        void parseApp(int marker){
-            try {
-                byte[] bytes = new byte[2];
-                mIs.read(bytes);
-                int num = i16(bytes)-2;
-                bytes = new byte[num];
-                mIs.read(bytes);
+        void parseApp(int marker) throws IOException {
+            byte[] bytes = new byte[2];
+            mIs.read(bytes);
+            int num = i16(bytes)-2;
+            bytes = new byte[num];
+            mIs.read(bytes);
 
-                String app = String.format("APP%d", (marker&0xF));
-                mImg.setAppInfo(marker, bytes);
-                if (marker == 0xFFE0 && cmpByte2Str(bytes,0,"JFIF\0")){
+            String app = String.format("APP%d", (marker&0xF));
+            mImg.setAppInfo(marker, bytes);
+            if (marker == 0xFFE0 && cmpByte2Str(bytes,0,"JFIF\0")){
 
-                    // JFIF版本号
-                    int version = i16(bytes, 5);
-                    String jfif_unit;
-                    switch (bytes[7]){
-                        case 1:// 点数/英寸
-                            jfif_unit = "points/inch";
-                            break;
-                        case 2:// 点数/厘米
-                            jfif_unit = "points/cm";
-                            break;
+                // JFIF版本号
+                int version = i16(bytes, 5);
+                String jfif_unit;
+                switch (bytes[7]){
+                    case 1:// 点数/英寸
+                        jfif_unit = "points/inch";
+                        break;
+                    case 2:// 点数/厘米
+                        jfif_unit = "points/cm";
+                        break;
 
-                        default:// 无单位
-                            jfif_unit = "None";
-                            break;
-                    }
+                    default:// 无单位
+                        jfif_unit = "None";
+                        break;
+                }
 
-                    // 水平分辨率、竖直分辨率
-                    int jfif_destiny_x,jfif_destiny_y;
-                    jfif_destiny_x = i16(bytes, 8);
-                    jfif_destiny_y = i16(bytes, 10);
-                    mImg.setJFIFInfo(version, jfif_unit, jfif_destiny_x, jfif_destiny_y);
+                // 水平分辨率、竖直分辨率
+                int jfif_destiny_x,jfif_destiny_y;
+                jfif_destiny_x = i16(bytes, 8);
+                jfif_destiny_y = i16(bytes, 10);
+                mImg.setJFIFInfo(version, jfif_unit, jfif_destiny_x, jfif_destiny_y);
 
-                    // 缩略图水平像素数目、竖直像素数目
-                    int thumbnail_horizontal_pixels, thumbnail_vertical_pixels;
-                    thumbnail_horizontal_pixels = bytes[12];
-                    thumbnail_vertical_pixels = bytes[13];
-                    int thumbnail_size = 3*thumbnail_horizontal_pixels*thumbnail_vertical_pixels;
-                    int[] thumbnail_RGB_bitmap = new int[thumbnail_size];
-                    for (int i = 0; i != thumbnail_size; ++i){
-                        thumbnail_RGB_bitmap[i] = (bytes[i+14] & 0xff);
-                    }
-                    mImg.setThumbnail(thumbnail_horizontal_pixels, thumbnail_vertical_pixels, thumbnail_RGB_bitmap);
-                }else if(marker == 0xFFE1 && cmpByte2Str(bytes,0,"Exif\0")){
-                    // TODO 解析exif信息
-                }else if(marker == 0xFFE2 && cmpByte2Str(bytes,0,"FPXR\0")){
-                    // TODO 解析FlashPix信息
-                }else if(marker == 0xFFE2 && cmpByte2Str(bytes,0,"ICC_PROFILE\0")){
-                    // TODO 解析ICC profile(描述设备色彩特性的数据文件)
+                // 缩略图水平像素数目、竖直像素数目
+                int thumbnail_horizontal_pixels, thumbnail_vertical_pixels;
+                thumbnail_horizontal_pixels = bytes[12];
+                thumbnail_vertical_pixels = bytes[13];
+                int thumbnail_size = 3*thumbnail_horizontal_pixels*thumbnail_vertical_pixels;
+                int[] thumbnail_RGB_bitmap = new int[thumbnail_size];
+                for (int i = 0; i != thumbnail_size; ++i){
+                    thumbnail_RGB_bitmap[i] = (bytes[i+14] & 0xff);
+                }
+                mImg.setThumbnail(thumbnail_horizontal_pixels, thumbnail_vertical_pixels, thumbnail_RGB_bitmap);
+            }else if(marker == 0xFFE1 && cmpByte2Str(bytes,0,"Exif\0")){
+                // TODO 解析exif信息
+            }else if(marker == 0xFFE2 && cmpByte2Str(bytes,0,"FPXR\0")){
+                // TODO 解析FlashPix信息
+            }else if(marker == 0xFFE2 && cmpByte2Str(bytes,0,"ICC_PROFILE\0")){
+                // TODO 解析ICC profile(描述设备色彩特性的数据文件)
 //                    # Since an ICC profile can be larger than the maximum size of
 //                    # a JPEG marker (64K), we need provisions to split it into
 //                    # multiple markers. The format defined by the ICC specifies
@@ -196,121 +185,104 @@ public class JPEGParser implements Closeable{
 //                    # reassemble the profile, rather than assuming that the APP2
 //                    # markers appear in the correct sequence.
 //                    self.icclist.append(s)
-                }else if(marker == 0xFFEE && cmpByte2Str(bytes,0,"Adobe\0")){
-                    // TODO 解析Adobe信息
-                    int adobe = i16(bytes,5);
-                    int adobe_transform = bytes[1];
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+            }else if(marker == 0xFFEE && cmpByte2Str(bytes,0,"Adobe\0")){
+                // TODO 解析Adobe信息
+                int adobe = i16(bytes,5);
+                int adobe_transform = bytes[1];
             }
         }
 
-        void parseDQT(int marker) {
-            try {
-                byte[] bytes = new byte[2];
-                mIs.read(bytes);
-                int num = i16(bytes)-2;
-                bytes = new byte[num];
-                mIs.read(bytes);
+        void parseDQT(int marker) throws IOException {
+            byte[] bytes = new byte[2];
+            mIs.read(bytes);
+            int num = i16(bytes)-2;
+            bytes = new byte[num];
+            mIs.read(bytes);
 
-                // 一个DQT块可能定义几个量化表
-                int[] scan_index = new int[]{0};
-                while (scan_index[0] < num) {
-                    JPEGDQT dqt = new JPEGDQT(bytes, scan_index);
-                    mImg.setDQT(dqt);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+            // 一个DQT块可能定义几个量化表
+            int[] scan_index = new int[]{0};
+            while (scan_index[0] < num) {
+                JPEGDQT dqt = new JPEGDQT(bytes, scan_index);
+                mImg.setDQT(dqt);
             }
         }
 
-        void parseSOF(int marker) throws InvalidJpegFormatException {
-            try {
-                byte[] bytes = new byte[2];
-                mIs.read(bytes);
-                int num = i16(bytes)-2;
-                bytes = new byte[num];
-                mIs.read(bytes);
+        void parseSOF(int marker) throws InvalidJpegFormatException, IOException {
+            byte[] bytes = new byte[2];
+            mIs.read(bytes);
+            int num = i16(bytes)-2;
+            bytes = new byte[num];
+            mIs.read(bytes);
 
-                int precision = bytes[0];
-                if (precision != 8){
-                    throw new InvalidJpegFormatException("当前图像每个数据样本的位数为:"+precision+".只支持解析样本位数为8位的图像");
-                }
-                int height = i16(bytes, 1);
-                int width = i16(bytes, 3);
-                mImg.setSize(width, height, precision);
-                switch (bytes[5])
-                {
-                    case 1:
-                        mImg.setColors(JPEGImage.COLORS_GREY);
-                        break;
-                    case 3:
-                        mImg.setColors(JPEGImage.COLORS_YCrCb);
-                        break;
-                    case 4:
-                        mImg.setColors(JPEGImage.COLORS_CMYK);
-                        break;
-                    default:
-                        throw new InvalidJpegFormatException();
-                }
-                for(int i=6;i!=bytes.length;i+=3){
-                    // 颜色分量id，水平采样因子，垂直采样因子，使用的量化表id
-                    int color_id = bytes[i];
-                    int h_samp = bytes[i+1] >>> 4;
-                    int v_samp = bytes[i+1] & 0x0f;
-                    int DQT_id = bytes[i+2];
-                    mImg.setLayer(new JPEGImage.JPEGLayer(color_id, v_samp, h_samp, DQT_id));
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+            int precision = bytes[0];
+            if (precision != 8){
+                throw new InvalidJpegFormatException("当前图像每个数据样本的位数为:"+precision+".\n暂只支持解析样本位数为8位的图像");
+            }
+            int height = i16(bytes, 1);
+            int width = i16(bytes, 3);
+            mImg.setSize(width, height, precision);
+            switch (bytes[5])
+            {
+                case 1:
+                    mImg.setColors(JPEGImage.COLORS_GREY);
+                    break;
+                case 3:
+                    mImg.setColors(JPEGImage.COLORS_YCrCb);
+                    break;
+                case 4:
+                    mImg.setColors(JPEGImage.COLORS_CMYK);
+                    break;
+                default:
+                    throw new InvalidJpegFormatException();
+            }
+            for(int i=6;i!=bytes.length;i+=3){
+                // 颜色分量id，水平采样因子，垂直采样因子，使用的量化表id
+                int color_id = bytes[i];
+                int h_samp = bytes[i+1] >>> 4;
+                int v_samp = bytes[i+1] & 0x0f;
+                int DQT_id = bytes[i+2];
+                mImg.setLayer(new JPEGImage.JPEGLayer(color_id, v_samp, h_samp, DQT_id));
             }
         }
 
-        void parseDHT(int marker){
-            try {
-                byte[] bytes = new byte[2];
-                mIs.read(bytes);
-                int num = i16(bytes)-2;
-                bytes = new byte[num];
-                mIs.read(bytes);
-
-//                System.out.print("DHT Data:");
-//                for(int i=0;i!=num;++i){
-//                    if( i%8 == 0){
-//                        System.out.println();
-//                    }
-//                    System.out.print(String.format("%4d,",bytes[i]));
-//                }System.out.println();
-
-                int[] scan_index = new int[]{0};
-                while (scan_index[0] < num) {
-                    JPEGHuffman ht = new JPEGHuffman(bytes, scan_index);
-                    mImg.setHuffman(ht);
+        void parseDHT(int marker) throws IOException {
+            byte[] bytes = new byte[2];
+            mIs.read(bytes);
+            int num = i16(bytes)-2;
+            bytes = new byte[num];
+            mIs.read(bytes);
+            if (verbose > 5) {
+                System.out.print("DHT Data:");
+                for (int i = 0; i != num; ++i) {
+                    if (i % 8 == 0) {
+                        System.out.println();
+                    }
+                    System.out.print(String.format("%4d,", bytes[i]));
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println();
+            }
+
+            int[] scan_index = new int[]{0};
+            while (scan_index[0] < num) {
+                JPEGHuffman ht = new JPEGHuffman(bytes, scan_index);
+                mImg.setHuffman(ht);
             }
         }
 
-        void parseSOS(int marker) throws InvalidJpegFormatException {
-            try {
-                byte[] bytes = new byte[2];
-                mIs.read(bytes);
-                int num = i16(bytes)-2;
-                bytes = new byte[num];
-                mIs.read(bytes);
+        void parseSOS(int marker) throws InvalidJpegFormatException, IOException {
+            byte[] bytes = new byte[2];
+            mIs.read(bytes);
+            int num = i16(bytes)-2;
+            bytes = new byte[num];
+            mIs.read(bytes);
 
-                int color_type = bytes[0];
-                for(int i=0,base=1;i!=color_type;++i,base+=2){
-                    int color_id = bytes[base] ;
-                    int dc_huffman_id = bytes[base+1] >>> 4;
-                    int ac_huffman_id = bytes[base+1] & 0xf;
-                    JPEGImage.JPEGLayer layer = mImg.getLayer(color_id);
-                    layer.setHuffman(dc_huffman_id, ac_huffman_id);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+            int color_type = bytes[0];
+            for(int i=0,base=1;i!=color_type;++i,base+=2){
+                int color_id = bytes[base] ;
+                int dc_huffman_id = bytes[base+1] >>> 4;
+                int ac_huffman_id = bytes[base+1] & 0xf;
+                JPEGImage.JPEGLayer layer = mImg.getLayer(color_id);
+                layer.setHuffman(dc_huffman_id, ac_huffman_id);
             }
         }
 
@@ -318,7 +290,7 @@ public class JPEGParser implements Closeable{
 
         }
 
-        private void startScan(){
+        private void startScan() throws IOException {
             try {
                 JPEGBitInputStream bis = new JPEGBitInputStream(mIs);
                 Set<Integer> color_ids = mImg.getColorIDs();
@@ -326,8 +298,6 @@ public class JPEGParser implements Closeable{
                 while (true) {
                     scanColorUnit(bis, color_ids, dc_base);
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             } catch (MarkAppearException e) {
                 // EOI.End of Image
                 System.out.println("End of Image.");
@@ -341,7 +311,9 @@ public class JPEGParser implements Closeable{
                 JPEGImage.JPEGLayer layer = mImg.getLayer(color_id);
                 // 对每一种颜色的采样值进行扫描
                 for (int i = 0; i != layer.mHSamp*layer.mVSamp; ++i){
-                    System.out.print(mImg.getColors()[color_id - 1] + ":");
+                    if (verbose > 1) {
+                        System.out.print(mImg.getColors()[color_id - 1] + ":");
+                    }
                     // 更新DC基值
                     int[] unit = new int[64];
                     Integer dc_val = dc_base.get(color_id);
@@ -357,7 +329,7 @@ public class JPEGParser implements Closeable{
                         if (e.mark == 0xd9){
                             throw e;
                         }
-                        // RSTn标志,重置base值 FIXME : 这样处理?
+                        // RSTn标志,重置base值 FIXME : 这样处理对吗? 还是对所有color_id的base值都置0？
                         System.err.println("Mark : RSTn "+e.mark+" color:"+color_id);
                         dc_base.put(color_id, 0);
                     }
@@ -378,8 +350,10 @@ public class JPEGParser implements Closeable{
             // DC实际值为diff值(读出)+上一Unit的DC值
             int dc_val = dc_base + convert(bis.readBitsString(weight));
             unit[0] = dc_val;
-            System.out.print(String.format("DC:%3d",dc_val));
-            System.out.print(" AC:");
+            if (verbose > 1) {
+                System.out.print(String.format("DC:%3d",dc_val));
+                System.out.print(" AC:");
+            }
 
             // 最多63个交流分量的值
             for (int i = 1; i < 64; ++i){
@@ -393,7 +367,9 @@ public class JPEGParser implements Closeable{
 
                 // 权值为0,代表后续的交流分量全部为0
                 if(weight == 0){
-                    System.out.print(String.format(", 0x%02x:",weight));
+                    if (verbose > 1) {
+                        System.out.print(String.format(", 0x%02x:", weight));
+                    }
                     // 权值为0，代表剩下的AC分量全部为0
                     for ( ; i < 64; ++i){
                         // 后面的位置全部填充0
@@ -414,11 +390,15 @@ public class JPEGParser implements Closeable{
                     int ac_val = convert(bis.readBitsString(nBit_read));
                     // 填充交流分量
                     unit[i] = ac_val;
-                System.out.print(String.format(", 0x%02x:(%2d, %2d)",
-                        weight, pre_zeros, ac_val));
+                    if (verbose > 1) {
+                        System.out.print(String.format(", 0x%02x:(%2d, %2d)",
+                                weight, pre_zeros, ac_val));
+                    }
                 }
             }
-            System.out.println(" END");
+            if (verbose > 1) {
+                System.out.println(" END");
+            }
             return dc_val;
         }
 
@@ -482,31 +462,31 @@ public class JPEGParser implements Closeable{
 
         String[] pics = {
                 "/Users/JaySon/Desktop/test.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140508_085331.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140508_085558.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140508_090150.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140508_092000.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140508_115427.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140508_140426.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140810_122739.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140810_122739_1.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140810_122741.jpg",
-//                "/Users/JaySon/Pictures/IMG_20140810_151927.jpg",
-//                "/Users/JaySon/Pictures/PANO_20140613_191243.jpg",
-//                "/Users/JaySon/Pictures/周 颠倒.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_085331.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_085558.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_090150.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_092000.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_115427.jpg",
+                "/Users/JaySon/Pictures/IMG_20140508_140426.jpg",
+                "/Users/JaySon/Pictures/IMG_20140810_122739.jpg",
+                "/Users/JaySon/Pictures/IMG_20140810_122739_1.jpg",
+                "/Users/JaySon/Pictures/IMG_20140810_122741.jpg",
+                "/Users/JaySon/Pictures/IMG_20140810_151927.jpg",
+                "/Users/JaySon/Pictures/PANO_20140613_191243.jpg",
+                "/Users/JaySon/Pictures/周 颠倒.jpg",
         };
 
         JPEGParser parser = null;
         try {
             Historgram[] historgrams = new Historgram[64];
             for (String pic : pics) {
-                try {
-                    os = new BufferedOutputStream(new FileOutputStream("result_my_ori.txt"), 1024);
-                    ps = new PrintStream(os, false);
-                    System.setOut(ps);
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                }
+//                try {
+//                    os = new BufferedOutputStream(new FileOutputStream("result_my_ori.txt"), 1024);
+//                    ps = new PrintStream(os, false);
+//                    System.setOut(ps);
+//                } catch (FileNotFoundException e) {
+//                    e.printStackTrace();
+//                }
 
                 System.out.println("Parsing:"+pic);
                 parser = new JPEGParser(pic);
@@ -534,22 +514,20 @@ public class JPEGParser implements Closeable{
 //                    System.out.print(String.format("%3d:", i));
 //                    historgrams[i].print();
 //                }
-                img.save(pic+"_saved.jpg");
+                img.save(pic + "_saved.jpg");
                 parser.close();
-                ps.close();
 
-                try {
-                    os = new BufferedOutputStream(new FileOutputStream("result_my_sav.txt"), 1024);
-                    ps = new PrintStream(os, false);
-                    System.setOut(ps);
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                }
-                System.out.println("Parsing:"+pic);
+//                try {
+//                    os = new BufferedOutputStream(new FileOutputStream("result_my_sav.txt"), 1024);
+//                    ps = new PrintStream(os, false);
+//                    System.setOut(ps);
+//                } catch (FileNotFoundException e) {
+//                    e.printStackTrace();
+//                }
+                System.out.println("Parsing:"+pic+"_saved.jpg");
                 parser = new JPEGParser(pic+"_saved.jpg");
                 img = parser.parse();
 
-                ps.close();
 
             }
         } catch (FileNotFoundException e) {

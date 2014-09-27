@@ -22,7 +22,9 @@ public class JPEGHuffman {
     Map<String, Integer> mPairs;
 
     JPEGHuffman(byte[] data, int[] scan_index){
-//        System.out.println("Building Huffman Table...");
+        if (JPEGParser.verbose > 5) {
+            System.out.println("Building Huffman Table...");
+        }
 
         mPairs = new TreeMap<String, Integer>();
 
@@ -30,14 +32,16 @@ public class JPEGHuffman {
         mType = data[scan_index[0]] >>> 4;
         // 表ID
         mID = data[scan_index[0]] & 0x0f;
-//        switch (mType){
-//            case TYPE_AC:
-//                System.out.println("AC - "+mID);
-//                break;
-//            case TYPE_DC:
-//                System.out.println("DC - "+mID);
-//                break;
-//        }
+        if (JPEGParser.verbose > 5) {
+            switch (mType) {
+                case TYPE_AC:
+                    System.out.println("AC - " + mID);
+                    break;
+                case TYPE_DC:
+                    System.out.println("DC - " + mID);
+                    break;
+            }
+        }
 
         //不同位数的码字数量 - 16 字节
         //编码内容
@@ -52,8 +56,10 @@ public class JPEGHuffman {
                 // 前置添0，保证码字长度为i
                 code_str = str_pad(i, Integer.toBinaryString(code));
                 ++code;
-//                System.out.println("("+code_str+", "+
-//                        (data[weight_ind] & 0xFF)+")");
+                if (JPEGParser.verbose > 5) {
+                    System.out.println("(" + code_str + ", " +
+                            (data[weight_ind] & 0xFF) + ")");
+                }
                 mPairs.put(code_str.toString(),
                         (data[weight_ind] & 0xFF));
                 // 指向下一个权值位置

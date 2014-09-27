@@ -1,7 +1,9 @@
 package com.jayson.utils.jpeg;
 
 /**
- * Created by JaySon on 14-8-3.
+ * Package : com.jayson.utils.jpeg
+ * Author  : JaySon
+ * Date    : 14-8-3
  */
 public class JPEGMarkInfo {
     public static final int TYPE_UNSUPPORTED = 0xe;
