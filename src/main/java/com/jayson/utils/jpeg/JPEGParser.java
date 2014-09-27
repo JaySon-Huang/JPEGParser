@@ -6,6 +6,7 @@ import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.HashMap;
@@ -62,7 +63,7 @@ public class JPEGParser implements Closeable{
         byte[] bytes = new byte[2];
         BlockParser parser = new BlockParser(imgObject);
         try {
-            while (true){
+            while (true) {
                 mIs.read(bytes);
                 int marker = i16(bytes);
                 JPEGMarkInfo info = JPEGMarker.getMarkInfo(marker);
@@ -274,6 +275,14 @@ public class JPEGParser implements Closeable{
                 bytes = new byte[num];
                 mIs.read(bytes);
 
+//                System.out.print("DHT Data:");
+//                for(int i=0;i!=num;++i){
+//                    if( i%8 == 0){
+//                        System.out.println();
+//                    }
+//                    System.out.print(String.format("%4d,",bytes[i]));
+//                }System.out.println();
+
                 int[] scan_index = new int[]{0};
                 while (scan_index[0] < num) {
                     JPEGHuffman ht = new JPEGHuffman(bytes, scan_index);
@@ -332,7 +341,7 @@ public class JPEGParser implements Closeable{
                 JPEGImage.JPEGLayer layer = mImg.getLayer(color_id);
                 // 对每一种颜色的采样值进行扫描
                 for (int i = 0; i != layer.mHSamp*layer.mVSamp; ++i){
-//                    System.out.print(mImg.getColors()[color - 1] + ":");
+                    System.out.print(mImg.getColors()[color_id - 1] + ":");
                     // 更新DC基值
                     int[] unit = new int[64];
                     Integer dc_val = dc_base.get(color_id);
@@ -360,7 +369,6 @@ public class JPEGParser implements Closeable{
             JPEGHuffman huffman;
             StringBuffer buf = new StringBuffer();
             Integer weight;
-//            int[] unit = new int[64];
             // 找到直流分量对应的权值，权值表示读取DC diff值需要读入多少bit
             do {
                 buf.append(bis.readBit());
@@ -370,8 +378,8 @@ public class JPEGParser implements Closeable{
             // DC实际值为diff值(读出)+上一Unit的DC值
             int dc_val = dc_base + convert(bis.readBitsString(weight));
             unit[0] = dc_val;
-//            System.out.print(String.format("DC:%3d",dc_val));
-//            System.out.print(" AC:");
+            System.out.print(String.format("DC:%3d",dc_val));
+            System.out.print(" AC:");
 
             // 最多63个交流分量的值
             for (int i = 1; i < 64; ++i){
@@ -385,33 +393,32 @@ public class JPEGParser implements Closeable{
 
                 // 权值为0,代表后续的交流分量全部为0
                 if(weight == 0){
-//                    System.out.print(String.format(", 0x%02x:",weight));
+                    System.out.print(String.format(", 0x%02x:",weight));
                     // 权值为0，代表剩下的AC分量全部为0
                     for ( ; i < 64; ++i){
                         // 后面的位置全部填充0
                         unit[i] = 0;
                     }
                     break;
+                }else {
+                    // 权值高4位表示前置有多少个0
+                    int pre_zeros = weight >>> 4;
+                    // 填充前置0
+                    for (int j = 0; j != pre_zeros; ++j) {
+                        unit[i + pre_zeros] = 0;
+                    }
+                    // 进行累加，i超过64则跳出
+                    i += pre_zeros;
+                    // 权值低4位表示读取AC值需要读入多少bit
+                    int nBit_read = weight & 0x0f;
+                    int ac_val = convert(bis.readBitsString(nBit_read));
+                    // 填充交流分量
+                    unit[i] = ac_val;
+                System.out.print(String.format(", 0x%02x:(%2d, %2d)",
+                        weight, pre_zeros, ac_val));
                 }
-
-                // 权值高4位表示前置有多少个0
-                int pre_zeros = weight >>> 4;
-                // 填充前置0
-                for (int j = 0; j != pre_zeros; ++j){
-                    unit[i+pre_zeros] = 0;
-                }
-                // 进行累加，i超过64则跳出
-                i += pre_zeros;
-                // 权值低4位表示读取AC值需要读入多少bit
-                int nBit_read = weight & 0x0f;
-                int ac_val = convert(bis.readBitsString(nBit_read));
-                // 填充交流分量
-                unit[i] = ac_val;
-//                System.out.print(String.format(", 0x%02x:(%2d, %2d)",
-//                        weight, pre_zeros, ac_val));
             }
-//            mImg.addDataUnit(unit);
-//            System.out.println(" END");
+            System.out.println(" END");
             return dc_val;
         }
 
@@ -475,24 +482,32 @@ public class JPEGParser implements Closeable{
 
         String[] pics = {
                 "/Users/JaySon/Desktop/test.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_085331.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_085558.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_090150.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_092000.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_115427.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_140426.jpg",
-                "/Users/JaySon/Pictures/IMG_20140810_122739.jpg",
-                "/Users/JaySon/Pictures/IMG_20140810_122739_1.jpg",
-                "/Users/JaySon/Pictures/IMG_20140810_122741.jpg",
-                "/Users/JaySon/Pictures/IMG_20140810_151927.jpg",
-                "/Users/JaySon/Pictures/PANO_20140613_191243.jpg",
-                "/Users/JaySon/Pictures/周 颠倒.jpg"
+//                "/Users/JaySon/Pictures/IMG_20140508_085331.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_085558.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_090150.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_092000.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_115427.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_140426.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122739.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122739_1.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122741.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_151927.jpg",
+//                "/Users/JaySon/Pictures/PANO_20140613_191243.jpg",
+//                "/Users/JaySon/Pictures/周 颠倒.jpg",
         };
 
         JPEGParser parser = null;
         try {
             Historgram[] historgrams = new Historgram[64];
             for (String pic : pics) {
+                try {
+                    os = new BufferedOutputStream(new FileOutputStream("result_my_ori.txt"), 1024);
+                    ps = new PrintStream(os, false);
+                    System.setOut(ps);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+
                 System.out.println("Parsing:"+pic);
                 parser = new JPEGParser(pic);
                 JPEGImage img = parser.parse();
@@ -500,24 +515,42 @@ public class JPEGParser implements Closeable{
                 for (int i = 0; i != historgrams.length; ++i) {
                     historgrams[i] = new Historgram();
                 }
-                for (Integer colorid : img.getColorIDs()) {
-                    for (int[] dataUnit : img.getDataUnits().getColorUnit(colorid)) {
+//                Integer colorid = (Integer)img.getColorIDs().toArray()[0];
+//                for (Integer colorid : img.getColorIDs()) {
+//                    for (int[] dataUnit : img.getDataUnits().getColorUnit(colorid)) {
 //                        System.out.println("[");
-                        for (int i = 0; i != 8; ++i) {
-                            for (int j = 0; j != 8; ++j) {
-                                historgrams[i * 8 + j].addN(dataUnit[i * 8 + j]);
+//                        for (int i = 0; i != 8; ++i) {
+//                            for (int j = 0; j != 8; ++j) {
+//                                historgrams[i * 8 + j].addN(dataUnit[i * 8 + j]);
 //                                System.out.print(String.format("%3d ,", dataUnit[i*8+j]));
-                            }
+//                            }
 //                            System.out.println();
-                        }
+//                        }
 //                        System.out.println("]");
-                    }
-                }
+//                    }
+//                }
 
-                for (int i = 0; i != 64; ++i) {
-                    System.out.print(String.format("%3d:", i));
-                    historgrams[i].print();
+//                for (int i = 0; i != 64; ++i) {
+//                    System.out.print(String.format("%3d:", i));
+//                    historgrams[i].print();
+//                }
+                img.save(pic+"_saved.jpg");
+                parser.close();
+                ps.close();
+
+                try {
+                    os = new BufferedOutputStream(new FileOutputStream("result_my_sav.txt"), 1024);
+                    ps = new PrintStream(os, false);
+                    System.setOut(ps);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
                 }
+                System.out.println("Parsing:"+pic);
+                parser = new JPEGParser(pic+"_saved.jpg");
+                img = parser.parse();
+
+                ps.close();
+
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();

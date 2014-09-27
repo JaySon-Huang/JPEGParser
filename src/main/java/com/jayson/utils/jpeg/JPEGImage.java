@@ -1,11 +1,9 @@
 package com.jayson.utils.jpeg;
 
 import java.io.DataOutputStream;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +27,7 @@ public class JPEGImage {
     public static final int DHT = 0xFFC4;
     public static final int SOF = 0xFFC0;
     public static final int SOS = 0xFFDA;
+    public static final int EOI = 0xFFD9;
 
     public static final String[] COLORS_GREY = new String[]{"L"};
     public static final String[] COLORS_YCrCb = new String[]{" Y", "Cr", "Cb"};
@@ -58,7 +57,7 @@ public class JPEGImage {
     /**
      * 量化表
      */
-    private JPEGDQT[] mDQT;
+    private List<JPEGDQT> mDQT;
 
     /**
      * 直流哈夫曼表
@@ -94,7 +93,7 @@ public class JPEGImage {
 
     public JPEGImage(String filepath){
         mApp = new HashMap<Integer, byte[]>();
-        mDQT = new JPEGDQT[4];
+        mDQT = new ArrayList<JPEGDQT>(4);
         mHuffmanDC = new JPEGHuffman[2];
         mHuffmanAC = new JPEGHuffman[2];
         mDataUnits = new JPEGDataUnits();
@@ -141,7 +140,7 @@ public class JPEGImage {
      * @param table     量化表
      */
     public void setDQT(JPEGDQT table) {
-        mDQT[table.getID()] = table;
+        mDQT.add(table.getID(), table);
     }
 
     /**
@@ -293,6 +292,9 @@ public class JPEGImage {
             // 写入图像数据
             this.saveData(fsave);
 
+            // 写入EOI
+            fsave.writeShort(EOI);
+
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } finally {
@@ -306,12 +308,117 @@ public class JPEGImage {
         }
     }
 
-    private void saveData(DataOutputStream out) {
-        for (Integer colorid : mLayers.keySet()) {
-            for (int[] dataUnit : mDataUnits.getColorUnit(colorid)) {
-                System.out.println("DC:" + dataUnit[0]);
+    private void saveData(DataOutputStream out) throws IOException {
+        JPEGBitOutputStream bout = new JPEGBitOutputStream(out, 100);
+        // Y,Cr,Cb 待写入的下一个color单元索引值
+        Map<Integer, Integer> indexs = new TreeMap<Integer, Integer>();
+        // 前一个单元的DC值
+        Map<Integer, Integer> pre_dcs = new TreeMap<Integer, Integer>();
+        for (int colorid : getColorIDs()){
+            indexs.put(colorid, 0);
+            pre_dcs.put(colorid, 0);
+        }
+
+        while (true) {
+            int colorid = saveOneUnit(indexs, pre_dcs, bout);
+            if (indexs.get(colorid) == mDataUnits.getColorUnit(colorid).size()){
+                break;
             }
         }
+    }
+
+    private int saveOneUnit(Map<Integer, Integer> indexs, Map<Integer, Integer> pre_dcs,
+                            JPEGBitOutputStream bout) throws IOException {
+        int ret = 0;
+        for (int colorid : getColorIDs()) {
+            ret = colorid;
+            JPEGLayer layer = mLayers.get(colorid);
+            for (int i = 0; i != layer.mHSamp*layer.mVSamp; ++i){
+                int ind_of_color = indexs.get(colorid);
+                int[] dataUnit = mDataUnits.getColorUnit(colorid).get(ind_of_color);
+                indexs.put(colorid, ind_of_color+1);
+
+//                System.out.println("DC:" + dataUnit[0]);
+                int dc_diff = dataUnit[0] - pre_dcs.get(colorid);
+                pre_dcs.put(colorid, dataUnit[0]);
+
+                // 写入 dc_diff
+                String bits_to_write = convert(dc_diff);
+                JPEGHuffman huffman = getHuffman(JPEGHuffman.TYPE_DC, layer.mDCHuffmanID);
+                String h_key = huffman.findKey(bits_to_write.length());
+                if (h_key != null){
+                    bout.putBitString(h_key);
+                    bout.putBitString(bits_to_write);
+                }else{
+                    System.err.println("Error in finding DC huffman key of "+bits_to_write.length()+"!");
+                }
+
+
+                // 写入 ac
+                huffman = getHuffman(JPEGHuffman.TYPE_AC, layer.mACHuffmanID);
+                int zero_cnt = 0;
+                for (int j = 1; j != 64; ++j){
+                    int weight_to_write;
+                    if (dataUnit[j] != 0){
+                        // 若0的个数不能以4bit表示，需要先存下前0x0f个0，再继续处理
+                        while (zero_cnt > 0x0f){
+                            weight_to_write = 0xf0;
+                            h_key = huffman.findKey(weight_to_write);
+                            bout.putBitString(h_key);
+                            zero_cnt -= 16;
+                        }
+                        weight_to_write = zero_cnt<<4;
+                        bits_to_write = convert(dataUnit[j]);
+//                        System.out.println(dataUnit[j]+" -> "+bits_to_write);
+                        weight_to_write |= bits_to_write.length();
+                        h_key = huffman.findKey(weight_to_write);
+                        if (h_key != null){
+                            bout.putBitString(h_key);
+                            bout.putBitString(bits_to_write);
+                        }else{
+                            System.err.println("Error in finding AC huffman key of "+ weight_to_write +"!");
+                            System.err.print("Block:");
+                            for (int index=0;index!=64;++index){
+                                if (index%8==0) System.err.println();
+                                System.out.print(String.format("%3d,",dataUnit[index]));
+                            }System.out.println();
+                            // TODO: 只为DEBUG存在
+                            throw new IOException();
+                        }
+                        zero_cnt = 0;
+                    }else{
+                        ++zero_cnt;
+                    }
+                }
+                if (zero_cnt != 0){
+                    h_key = huffman.findKey(0);
+                    bout.putBitString(h_key);
+                }
+            }
+        }
+//        System.out.println("One Unit end~");
+        return ret;
+    }
+
+    private String convert(int num){
+        int bit_of_num = 0;
+        int tmp = Math.abs(num);
+        while( tmp != 0){
+            tmp >>= 1;
+            ++bit_of_num;
+        }
+
+        StringBuffer res;
+        if (num > 0) {
+            res = new StringBuffer(Integer.toBinaryString(num));
+        }else{
+            num = Math.abs(num);
+            res = new StringBuffer(Integer.toBinaryString((1<<bit_of_num)-1 - num));
+        }
+        while ( res.length() < bit_of_num) {
+            res.insert(0, '0');
+        }
+        return res.toString();
     }
 
     private void saveSOS(DataOutputStream out) throws IOException {
@@ -397,4 +504,5 @@ public class JPEGImage {
             mACHuffmanID = ac_huffman_id;
         }
     }
+
 }

@@ -3,8 +3,8 @@ package com.jayson.utils.jpeg;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Package : com.jayson.utils.jpeg
@@ -24,7 +24,7 @@ public class JPEGHuffman {
     JPEGHuffman(byte[] data, int[] scan_index){
 //        System.out.println("Building Huffman Table...");
 
-        mPairs = new HashMap<String, Integer>();
+        mPairs = new TreeMap<String, Integer>();
 
         // 表类型 0--DC 1--AC
         mType = data[scan_index[0]] >>> 4;
@@ -84,11 +84,20 @@ public class JPEGHuffman {
         return mPairs.get(key);
     }
 
+    public String findKey(int value){
+        for (Map.Entry<String, Integer> entry: mPairs.entrySet()){
+            if (entry.getValue() == value){
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
     public void save(DataOutputStream out) throws IOException {
         out.writeShort(JPEGImage.DHT);// DHT标志
         int len = 16+mPairs.size();
         byte[] bytes = new byte[len];
-        out.writeShort(2 + len);// 写入段长度
+        out.writeShort(2 + 1 + len);// 写入段长度
         out.write( mType<<4 | mID );// 写入Huffman树类型、ID。
         ArrayList< ArrayList<Integer> > data = new ArrayList< ArrayList<Integer> >(17);
         for (int i = 0; i != 17; ++i){
@@ -97,8 +106,8 @@ public class JPEGHuffman {
         for (Map.Entry<String, Integer> entry : mPairs.entrySet()){
             data.get( entry.getKey().length()-1 ).add( entry.getValue() );
         }
-        int valIndex = 17;
-        for (int i = 0; i != 17; ++i) {
+        int valIndex = 16;
+        for (int i = 0; i != 16; ++i) {
             bytes[i] = (byte) data.get(i).size();
             for (int j = 0; j != data.get(i).size(); ++j) {
                 bytes[valIndex++] = data.get(i).get(j).byteValue();

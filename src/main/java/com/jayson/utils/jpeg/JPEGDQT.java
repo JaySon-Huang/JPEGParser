@@ -3,6 +3,7 @@ package com.jayson.utils.jpeg;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.List;
 
 import static com.jayson.utils.jpeg.b2i.i16;
 
@@ -20,6 +21,14 @@ public class JPEGDQT {
     private int mPrecision;
 
     public JPEGDQT(byte[] bytes, int[] scan_index) {
+//        System.out.print("DQT Data:");
+//        for (int i=0;i!=1+64*(mPrecision+1); ++i){
+//            if (i % 8 == 0){
+//                System.out.println();
+//            }
+//            System.out.print(String.format("%3d,",bytes[scan_index[0]+i]));
+//        }System.out.println();
+
         // 偏移值0处，高四位为精度值 0/1
         mPrecision = bytes[scan_index[0]] >>> 4;
         // 低四位为量化表id
@@ -57,19 +66,18 @@ public class JPEGDQT {
     /**
      * 把四个量化表存储为一个block，输出到out中
      * @param out       输出
-     * @param tables    四个量化表
+     * @param tables    量化表
      */
-    public static void saveDQTs (DataOutputStream out, JPEGDQT[] tables) throws IOException {
-        assert (tables.length == 4);
+    public static void saveDQTs (DataOutputStream out, List<JPEGDQT> tables) throws IOException {
 
         out.writeShort(JPEGImage.DQT);
-        out.writeShort(2+260);// 四个块精度都为 PRECISION_8
+        out.writeShort(2 + tables.size()*(1+64));// 四个块精度都为 PRECISION_8
         for (int i = 0; i != 2; ++i){
-            assert (tables[i].mPrecision == PRECISION_8);
+            assert (tables.get(i).mPrecision == PRECISION_8);
             byte b = (byte) (i&0xf);
             out.write(b);
             for (int j = 0; j != 64; ++j) {
-                out.write(tables[i].mTable[j]);
+                out.write(tables.get(i).mTable[j]);
             }
         }
     }
