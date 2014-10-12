@@ -1,4 +1,4 @@
-package com.jayson.utils;
+﻿package com.jayson.utils;
 
 import java.io.PrintStream;
 import java.util.Comparator;
@@ -14,6 +14,7 @@ import java.util.TreeMap;
  */
 public class Historgram implements Cloneable{
 
+    // 存储直方图x,y数据
     Map<Integer, Integer> mHistorgram;
 
     public Historgram(){
