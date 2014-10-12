@@ -12,7 +12,7 @@ import java.util.Map;
  * Author  : JaySon
  * Date    : 8/17/14
  */
-public class JPEGDataUnits {
+public class JPEGDataUnits implements Cloneable{
     private Map< Integer, List<int[]> > mUnits;
 
     public JPEGDataUnits(){
@@ -54,6 +54,18 @@ public class JPEGDataUnits {
         for (int[] unit : mUnits.get(colorid)){
             for (int i = 0; i != 64; ++i){
                 ret[i].addN( unit[i] );
+            }
+        }
+        return ret;
+    }
+
+    public JPEGDataUnits clone() throws CloneNotSupportedException {
+        super.clone();
+        JPEGDataUnits ret = new JPEGDataUnits();
+        for (Map.Entry<Integer, List<int[]>> entry: mUnits.entrySet()){
+            for (int i=0;i!=entry.getValue().size();++i){
+                int[] unit = entry.getValue().get(i).clone();
+                ret.add(entry.getKey(), unit);
             }
         }
         return ret;

@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.TreeMap;
 
 /**
  * Package : com.jayson.utils
@@ -16,7 +17,7 @@ public class Historgram implements Cloneable{
     Map<Integer, Integer> mHistorgram;
 
     public Historgram(){
-        mHistorgram = new HashMap<Integer, Integer>();
+        mHistorgram = new TreeMap<Integer, Integer>();
     }
 
     public void addN(int n){
@@ -70,42 +71,40 @@ public class Historgram implements Cloneable{
     }
 
     /**
-     * 对直方图进行平移,空出左基准-1,右基准+1,留出存储额外信息的空间
-     * @param left  左基准
-     * @param right 右基准
+     * 对直方图进行平移,空出基准-1,基准+1,留出存储额外信息的空间
+     * @param base_position  基准位置
      */
-    public void shift(int left, int right){
-        // FIXME: 实现之
-        int[] z = findZ(left, right);
+    public void shift(int base_position){
+        int[] z = findZ(base_position);
         System.out.println(String.format("z1, z2:%3d, %3d", z[0], z[1]));
-        System.out.print("Before shift:");this.print(System.out);
+        System.out.println("Before shift:");this.print();
 
-        // (z[0] , left-1] 区间全部左移
-        for (int i = z[0]+1; i != left; ++i){
+        // (z[0] , base_position-1] 区间全部左移
+        for (int i = z[0]+1; i != base_position; ++i){
             if (mHistorgram.containsKey(i)){
                 mHistorgram.put(i-1, mHistorgram.get(i));
             }
         }
-        mHistorgram.put(left-1,0);
+        mHistorgram.put(base_position-1,0);
 
-        // [ right+1 , z[1] ) 区间的全部右移
-        for (int i = z[1]-1; i != right; --i){
+        // [ base_position+1 , z[1] ) 区间的全部右移
+        for (int i = z[1]-1; i != base_position; --i){
             if (mHistorgram.containsKey(i)){
                 mHistorgram.put(i+1, mHistorgram.get(i));
             }
         }
-        mHistorgram.put(right+1,0);
+        mHistorgram.put(base_position+1,0);
 
-        System.out.print("After  shift:");this.print(System.out);
+        System.out.println("After  shift:");this.print();
     }
 
     public void unshift(){
         // FIXME: 实现之
     }
 
-    public int[] findZ(int left, int right){
+    public int[] findZ(int base){
         int[] z = new int[2];
-        int pos = left-1;
+        int pos = base-1;
         while (true){
             if (this.getN(pos) == 0){
                 z[0] = pos;
@@ -115,7 +114,7 @@ public class Historgram implements Cloneable{
             }
         }
 
-        pos = right + 1;
+        pos = base + 1;
         while (true){
             if (this.getN(pos) == 0){
                 z[1] = pos;
@@ -144,6 +143,7 @@ public class Historgram implements Cloneable{
         }
     };
     public void print(PrintStream ps){
+        /*
         ps.print('{');
         PriorityQueue< Map.Entry<Integer, Integer> > q
                 = new PriorityQueue< Map.Entry<Integer, Integer> >(mHistorgram.size(), cmp);
@@ -171,7 +171,21 @@ public class Historgram implements Cloneable{
         }
         ps.println('}');
         ps.println(String.format("[ %d , %d]", min_key, max_key));
+        */
 
+        ps.print("x = [");
+        for (Map.Entry<Integer,Integer> entry : mHistorgram.entrySet()){
+            ps.print(entry.getKey()+",");
+        }
+        ps.println("]");
+
+        ps.print("y = [");
+        for (Map.Entry<Integer,Integer> entry : mHistorgram.entrySet()){
+            ps.print(entry.getValue()+",");
+        }
+        ps.println("]");
+
+        ps.println("============\n");
     }
 
 
@@ -193,7 +207,7 @@ public class Historgram implements Cloneable{
         historgram.setN(9, 8);
 
         historgram.print();
-        historgram.shift(0,1);
+        historgram.shift(0);
         historgram.print();
 
     }

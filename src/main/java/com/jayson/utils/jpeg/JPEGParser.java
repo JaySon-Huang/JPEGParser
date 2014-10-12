@@ -10,6 +10,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -462,72 +463,61 @@ public class JPEGParser implements Closeable{
 
         String[] pics = {
                 "/Users/JaySon/Desktop/test.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_085331.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_085558.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_090150.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_092000.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_115427.jpg",
-                "/Users/JaySon/Pictures/IMG_20140508_140426.jpg",
-                "/Users/JaySon/Pictures/IMG_20140810_122739.jpg",
-                "/Users/JaySon/Pictures/IMG_20140810_122739_1.jpg",
-                "/Users/JaySon/Pictures/IMG_20140810_122741.jpg",
-                "/Users/JaySon/Pictures/IMG_20140810_151927.jpg",
-                "/Users/JaySon/Pictures/PANO_20140613_191243.jpg",
-                "/Users/JaySon/Pictures/周 颠倒.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_085331.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_085558.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_090150.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_092000.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_115427.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_140426.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122739.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122739_1.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122741.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_151927.jpg",
+//                "/Users/JaySon/Pictures/PANO_20140613_191243.jpg",
+//                "/Users/JaySon/Pictures/周 颠倒.jpg",
         };
 
         JPEGParser parser = null;
         try {
-            Historgram[] historgrams = new Historgram[64];
             for (String pic : pics) {
-//                try {
-//                    os = new BufferedOutputStream(new FileOutputStream("result_my_ori.txt"), 1024);
-//                    ps = new PrintStream(os, false);
-//                    System.setOut(ps);
-//                } catch (FileNotFoundException e) {
-//                    e.printStackTrace();
-//                }
+                try {
+                    os = new BufferedOutputStream(new FileOutputStream("result_my_ori.txt"), 1024);
+                    ps = new PrintStream(os, false);
+                    System.setOut(ps);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
 
                 System.out.println("Parsing:"+pic);
                 parser = new JPEGParser(pic);
                 JPEGImage img = parser.parse();
-
-                for (int i = 0; i != historgrams.length; ++i) {
-                    historgrams[i] = new Historgram();
-                }
-//                Integer colorid = (Integer)img.getColorIDs().toArray()[0];
-//                for (Integer colorid : img.getColorIDs()) {
-//                    for (int[] dataUnit : img.getDataUnits().getColorUnit(colorid)) {
-//                        System.out.println("[");
-//                        for (int i = 0; i != 8; ++i) {
-//                            for (int j = 0; j != 8; ++j) {
-//                                historgrams[i * 8 + j].addN(dataUnit[i * 8 + j]);
-//                                System.out.print(String.format("%3d ,", dataUnit[i*8+j]));
-//                            }
-//                            System.out.println();
-//                        }
-//                        System.out.println("]");
+                List<int[]> YUnits = img.getDataUnits().getColorUnit(1);
+//                for (int[] unit:YUnits){
+//                    for (int i = 0; i != unit.length; ++i) {
+//                        if (i % 8 == 0) System.out.println();
+//                        System.out.print(String.format("%5d",unit[i]));
 //                    }
-//                }
+//                }System.out.println("\n========");
+                Historgram[] YHistorgrams = img.getDataUnits().getHistorgram(1);
+                for (Historgram his : YHistorgrams){
+                    his.print();
+                }
 
-//                for (int i = 0; i != 64; ++i) {
-//                    System.out.print(String.format("%3d:", i));
-//                    historgrams[i].print();
-//                }
+                ps.close();
                 img.save(pic + "_saved.jpg");
                 parser.close();
 
-//                try {
-//                    os = new BufferedOutputStream(new FileOutputStream("result_my_sav.txt"), 1024);
-//                    ps = new PrintStream(os, false);
-//                    System.setOut(ps);
-//                } catch (FileNotFoundException e) {
-//                    e.printStackTrace();
-//                }
+                try {
+                    os = new BufferedOutputStream(new FileOutputStream("result_my_sav.txt"), 1024);
+                    ps = new PrintStream(os, false);
+                    System.setOut(ps);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
                 System.out.println("Parsing:"+pic+"_saved.jpg");
                 parser = new JPEGParser(pic+"_saved.jpg");
                 img = parser.parse();
-
+                ps.close();
 
             }
         } catch (FileNotFoundException e) {

@@ -338,7 +338,7 @@ public class JPEGImage {
                 int[] dataUnit = mDataUnits.getColorUnit(colorid).get(ind_of_color);
                 indexs.put(colorid, ind_of_color+1);
 
-                if (JPEGParser.verbose > 2) {
+                if (JPEGParser.verbose > 3) {
                     System.out.println("DC:" + dataUnit[0]);
                 }
                 int dc_diff = dataUnit[0] - pre_dcs.get(colorid);
@@ -368,7 +368,7 @@ public class JPEGImage {
                         }
                         weight_to_write = zero_cnt<<4;
                         bits_to_write = convert(dataUnit[j]);
-                        if (JPEGParser.verbose > 2) {
+                        if (JPEGParser.verbose > 3) {
                             System.out.println(dataUnit[j] + " -> " + bits_to_write);
                         }
                         weight_to_write |= bits_to_write.length();
@@ -397,7 +397,7 @@ public class JPEGImage {
                 }
             }
         }
-        if (JPEGParser.verbose > 2) {
+        if (JPEGParser.verbose > 3) {
             System.out.println("One Unit end~");
         }
         return ret;
