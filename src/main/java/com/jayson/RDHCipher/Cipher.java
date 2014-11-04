@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Package : com.jayson.RDHCipher
@@ -49,6 +50,7 @@ public class Cipher {
     private int[] mRandomTable;
 
     /**
+     * 构造函数
      *
      * @param filename  加密的文件
      * @param phase     用户密钥
@@ -58,6 +60,7 @@ public class Cipher {
     public Cipher(String filename, String phase) throws IOException, JPEGParser.InvalidJpegFormatException, InvalidKeySpecException, NoSuchAlgorithmException {
         JPEGParser parser = new JPEGParser(filename);
         mImg = parser.parse();
+        parser.close();
         mMask = new int[mImg.size()];
 
         // 生成 32+128 bytes的密钥,返回为十六进制编码后的字符串
@@ -78,6 +81,12 @@ public class Cipher {
         System.out.println("Q:"+m_Q);
     }
 
+    /**
+     * 对图像内容加密，并嵌入byte2emb中的信息
+     *
+     * @param byte2emb      需要嵌入的信息字节流
+     * @throws IOException
+     */
     public void emb(byte[] byte2emb) throws IOException {
         // 获得Y的colorid
         Integer colorid = (Integer) mImg.getColorIDs().toArray()[0];
@@ -85,6 +94,16 @@ public class Cipher {
         JPEGDataUnits dataUnits = mImg.getDataUnits();
         List<int[]> YUnits = dataUnits.getColorUnit(colorid);
 
+        // 打乱数据顺序
+        try {
+            JPEGDataUnits shuffled = shuffleDataUnits(dataUnits, mImg.getColorIDs());
+            mImg.setDataUnits(shuffled);
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
+
+        // 重新获取jpeg数据块
+        dataUnits = mImg.getDataUnits();
 
         // 对图像数据进行平移,达到直方图中( POSITION_BASE-1, P_RIGHT+1 )处位置空出用以嵌入数据.
         int slot = byte2emb.length / YUnits.size() + 1;
@@ -95,22 +114,20 @@ public class Cipher {
         }
         mMask = new int[YUnits.size()];
 
-
         // 嵌入信息
         ByteArrayInputStream is = new ByteArrayInputStream(byte2emb);
         BitInputStream bis = new BitInputStream(is);
-
 
         for (EmbInfo embinfo: embInfos){
             try {
                 int bit = bis.readBit();
                 int newVal = dataUnits.get(colorid, embinfo.unit_no, embinfo.AC_no);
-                if (embinfo.isLeftSlot) {
-//                    System.out.println(String.format("%3s -> %3s",newVal,newVal-bit));
-                    newVal -= bit;
-                }else{
-//                    System.out.println(String.format("%3s -> %3s",newVal,newVal+bit));
-                    newVal += bit;
+                if ( bit==0 ) { //嵌入0，0 --> -1
+                    System.out.println(String.format("%3s -> %3s",newVal,newVal-bit));
+                    newVal -= 1;
+                }else{          //嵌入1，0 --> 1
+                    System.out.println(String.format("%3s -> %3s",newVal,newVal+bit));
+                    newVal += 1;
                 }
                 dataUnits.put(colorid, embinfo.unit_no, embinfo.AC_no, newVal);
             } catch (EOFException e) {
@@ -126,14 +143,49 @@ public class Cipher {
         Historgram[] historgrams = dataUnits.getHistorgram(colorid);
         System.out.print("Embed  = ");for (int i=0;i!=64;++i){System.out.print(i+":");historgrams[i].print(System.out);}
 
-
         try {
             mImg.save(mImg.getFilePath()+"_encrypted.jpg");
         } catch (JPEGParser.InvalidJpegFormatException e) {
-            e.printStackTrace();
+            System.err.println("错误的图像信息!");
         }
     }
 
+    /**
+     * 对颜色空间的jpeg块进行打乱，使图像内容不可识别
+     *
+     * @return 打乱后新的DataUnit
+     */
+    private JPEGDataUnits shuffleDataUnits(JPEGDataUnits oldData, Set<Integer> colorids) throws CloneNotSupportedException {
+        JPEGDataUnits newData = oldData.clone();
+        List<Integer> shuffledIndex = null;
+        List<int[]> oldUnit = null;
+
+        // 对每个颜色分量进行混淆
+        for (int colorid : colorids){
+            shuffledIndex = new ArrayList<Integer>();
+            oldUnit = oldData.getColorUnit(colorid);
+            for (int i = 0; i != oldUnit.size(); ++i){
+                shuffledIndex.add(i);
+            }
+            Collections.shuffle(shuffledIndex, mRandom);
+
+            List<int[]> newUnit = newData.getColorUnit(colorid);
+            for (int i=0; i!= oldUnit.size(); ++i){
+                newUnit.set(shuffledIndex.get(i), oldUnit.get(i));
+            }
+
+        }
+        return newData;
+    }
+
+    /**
+     * 对jpeg数据块进行平移，并留出位置嵌入隐写信息。
+     *
+     * @param dataUnits jpeg数据块
+     * @param colorid   进行平移的颜色分量id
+     * @param slot      平移的槽数
+     * @return          可以嵌入信息的位置信息。
+     */
     private List<EmbInfo> shiftData(JPEGDataUnits dataUnits,int colorid , int slot){
         // 需要进行操作的颜色空间
         List<int[]> colorUnit = dataUnits.getColorUnit(colorid);
@@ -141,7 +193,6 @@ public class Cipher {
         Historgram[] historgrams = dataUnits.getHistorgram(colorid);
         // 返回值,返回可嵌入的位置
         ArrayList<EmbInfo> retInfos = new ArrayList<EmbInfo>(colorUnit.size());
-
 
         // 平移留出嵌入空间,颜色空间0处为直流分量,不做处理
         for (int acIndex = 1; acIndex <= slot; ++acIndex){
@@ -153,10 +204,10 @@ public class Cipher {
             for (int unitIndex = 0; unitIndex != colorUnit.size(); ++unitIndex){
                 int[] unit = colorUnit.get(unitIndex);
                 if ( z[0] < unit[acIndex] && unit[acIndex] < Cipher.POSITION_BASE ){
-                    System.out.println(String.format("%4d left  shifted",unit[acIndex]));
+//                    System.out.println(String.format("%4d left  shifted",unit[acIndex]));
                     --unit[acIndex];// 左移
                 }else if ( Cipher.POSITION_BASE < unit[acIndex] && unit[acIndex] < z[1] ){
-                    System.out.println(String.format("%4d right shifted",unit[acIndex]));
+//                    System.out.println(String.format("%4d right shifted",unit[acIndex]));
                     ++unit[acIndex];// 右移
                 }else if(unit[acIndex] == Cipher.POSITION_BASE){
                     retInfos.add(new EmbInfo(unitIndex, acIndex, true));
@@ -167,6 +218,17 @@ public class Cipher {
         historgrams = dataUnits.getHistorgram(colorid);
         System.out.println("After  : ");historgrams[1].print();
         return retInfos;
+    }
+
+    /**
+     * 不解密图像内容，只获取嵌入的字节流
+     *
+     * @return 被嵌入的信息
+     */
+    public byte[] extract() {
+        byte[] data = null;
+
+        return data;
     }
 
     private int r(int i){
@@ -200,8 +262,25 @@ public class Cipher {
 
 
     public static void main(String[] args) throws JPEGParser.InvalidJpegFormatException, InvalidKeySpecException, NoSuchAlgorithmException, IOException {
-        Cipher encryptor = new Cipher("/Users/JaySon/Desktop/test.jpg", "JaySon");
-        byte[] message = new byte[]{(byte) 0xff, (byte) 0xee, (byte) 0xdd};
-        encryptor.emb(message);
+        String[] pics = {
+                "/Users/JaySon/Desktop/test.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_085331.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_085558.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_090150.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_092000.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_115427.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140508_140426.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122739.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122739_1.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_122741.jpg",
+//                "/Users/JaySon/Pictures/IMG_20140810_151927.jpg",
+//                "/Users/JaySon/Pictures/PANO_20140613_191243.jpg",
+//                "/Users/JaySon/Pictures/周 颠倒.jpg",
+        };
+        for (String pic : pics) {
+            Cipher encryptor = new Cipher(pic, "JaySon");
+            byte[] message = new byte[]{(byte) 0xff, (byte) 0xee, (byte) 0xdd};
+            encryptor.emb(message);
+        }
     }
 }
