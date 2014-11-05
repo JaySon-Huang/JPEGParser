@@ -61,7 +61,7 @@ public class Cipher {
         JPEGParser parser = new JPEGParser(filename);
         mImg = parser.parse();
         parser.close();
-        mMask = new int[mImg.size()];
+//        mMask = new int[mImg.size()];
 
         // 生成 32+128 bytes的密钥,返回为十六进制编码后的字符串
         String pbkdf2Hash = PBKDF2Utils.getPBKDF2Hash(phase, 32+128, PBKDF2Utils.DEFAULT_ITERATION);
@@ -108,11 +108,13 @@ public class Cipher {
         // 对图像数据进行平移,达到直方图中( POSITION_BASE-1, P_RIGHT+1 )处位置空出用以嵌入数据.
         int slot = byte2emb.length / YUnits.size() + 1;
         List<EmbInfo> embInfos = shiftData(dataUnits, colorid, slot);
-        mRandomTable = new int[dataUnits.getColorUnit(colorid).size()];
-        for (int i = 0; i != YUnits.size(); ++i){
-            mRandomTable[i] = mRandom.nextInt();
-        }
-        mMask = new int[YUnits.size()];
+
+        // 无用的成员变量
+//        mRandomTable = new int[dataUnits.getColorUnit(colorid).size()];
+//        for (int i = 0; i != YUnits.size(); ++i){
+//            mRandomTable[i] = mRandom.nextInt();
+//        }
+//        mMask = new int[YUnits.size()];
 
         // 嵌入信息
         ByteArrayInputStream is = new ByteArrayInputStream(byte2emb);
@@ -200,7 +202,7 @@ public class Cipher {
             int[] z = historgrams[acIndex].findZ(Cipher.POSITION_BASE);
             System.out.println(String.format("z:[%3d,%3d]",z[0],z[1]));
             System.out.println("Before : ");historgrams[acIndex].print();
-            // 看每一个unit第i个分量是否在区间内,是的话进行平移
+            // 看每一个unit第acIndex个分量是否在区间内,是的话进行平移
             for (int unitIndex = 0; unitIndex != colorUnit.size(); ++unitIndex){
                 int[] unit = colorUnit.get(unitIndex);
                 if ( z[0] < unit[acIndex] && unit[acIndex] < Cipher.POSITION_BASE ){
@@ -226,8 +228,33 @@ public class Cipher {
      * @return 被嵌入的信息
      */
     public byte[] extract() {
-        byte[] data = null;
+        List<Byte> bitData = new ArrayList<Byte>();
+        // 获得Y的colorid
+        Integer colorid = (Integer) mImg.getColorIDs().toArray()[0];
+        // 获得Y的color unit
+        JPEGDataUnits dataUnits = mImg.getDataUnits();
+        List<int[]> YUnits = dataUnits.getColorUnit(colorid);
 
+        for (int acIndex=1; acIndex != 2; ++acIndex){
+            for (int unitIndex=0; unitIndex != YUnits.size(); ++unitIndex){
+                int val = dataUnits.get(colorid, unitIndex, acIndex);
+                if (val == -1){
+                    bitData.add((byte)0);
+                }else if (val == 1){
+                    bitData.add((byte)1);
+                }
+            }
+        }
+
+        byte[] data = new byte[bitData.size()>>3];
+        for (int i=0; i!= bitData.size(); ++i){
+            data[i>>3] <<= 1;
+            if (bitData.get(i) == -1){
+                data[i>>3] |= 0;
+            }else if (bitData.get(i) == 1){
+                data[i>>3] |= 1;
+            }
+        }
         return data;
     }
 
@@ -281,6 +308,14 @@ public class Cipher {
             Cipher encryptor = new Cipher(pic, "JaySon");
             byte[] message = new byte[]{(byte) 0xff, (byte) 0xee, (byte) 0xdd};
             encryptor.emb(message);
+
+            System.out.println("Extracting Data...");
+            Cipher decryptor = new Cipher(pic+"_encrypted.jpg", "JaySon");
+            message = decryptor.extract();
+            for (byte b : message){
+                System.out.print(String.format("%02X, ",b));
+            }
+            System.out.println();
         }
     }
 }
