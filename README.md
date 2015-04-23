@@ -1,4 +1,4 @@
-此项目已转移到https://github.com/JaySon-Huang/SecretCamera 进行进一步的开发
+此项目已废止
 =========
 
 加密域下jpeg格式图像隐写
